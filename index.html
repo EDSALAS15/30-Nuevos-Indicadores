@@ -254,9 +254,15 @@
         <div class="card">
 
             <div id="uploadArea">
-                <p>Cargue el archivo Excel para activar las gráficas.</p>
-                <input type="file" id="fileInput" accept=".xlsx">
-                <p id="uploadError" style="color:#C10230; font-size:12px; margin-top:8px;"></p>
+                <div id="autoLoadMsg" style="padding:20px 0;">
+                    <div class="spinner" style="margin:0 auto 12px;"></div>
+                    <p style="color:#555; font-size:13px; margin:0;">Cargando datos desde el repositorio...</p>
+                </div>
+                <p id="uploadError" style="color:#C10230; font-size:12px; margin-top:8px; display:none;"></p>
+                <div id="retryArea" style="display:none; margin-top:14px;">
+                    <p style="color:#999; font-size:11px; margin-bottom:8px;">O cargue el archivo manualmente:</p>
+                    <input type="file" id="fileInput" accept=".xlsx">
+                </div>
             </div>
 
             <div id="mainUI" style="display:none;">
@@ -413,7 +419,7 @@ window.addEventListener('load', () => {
     // ─── Cache de referencias DOM ────────────────────────────────────────────
     const $ = id => document.getElementById(id);
     const DOM = {
-        fileInput:    $('fileInput'),
+        // fileInput: se activa dinámicamente solo si falla la carga automática
         uploadError:  $('uploadError'),
         uploadArea:   $('uploadArea'),
         mainUI:       $('mainUI'),
@@ -446,40 +452,60 @@ window.addEventListener('load', () => {
     };
 
     // ─── Carga del archivo Excel ──────────────────────────────────────────────
-    DOM.fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        setLoading(true);
-        DOM.uploadError.textContent = '';
+    // ── Función central: procesa un ArrayBuffer del Excel ────────────────────────
+    function processExcelBuffer(buffer) {
+        const wb    = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const years = new Set();
+        SHEETS.forEach((sheetName, idx) => {
+            const sheet = wb.Sheets[sheetName];
+            if (!sheet) return;
+            megaStore[idx] = sheetName === "5.0F"
+                ? parseSheet5F(sheet, years)
+                : parseSheetGeneric(sheet, years);
+        });
+        if (years.size === 0) throw new Error("No se encontraron datos de años.");
+        populateYearSelector(years);
+        DOM.mainUI.style.display     = 'block';
+        DOM.uploadArea.style.display = 'none';
+        DOM.sidebar.classList.add('loaded');
+        updateCharts();
+    }
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const wb    = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-                const years = new Set();
-                SHEETS.forEach((sheetName, idx) => {
-                    const sheet = wb.Sheets[sheetName];
-                    if (!sheet) return;
-                    megaStore[idx] = sheetName === "5.0F"
-                        ? parseSheet5F(sheet, years)
-                        : parseSheetGeneric(sheet, years);
-                });
-                if (years.size === 0) throw new Error("No se encontraron datos de años.");
-                populateYearSelector(years);
-                DOM.mainUI.style.display    = 'block';
-                DOM.uploadArea.style.display = 'none';
-                DOM.sidebar.classList.add('loaded');
-                updateCharts();
-            } catch (err) {
-                DOM.uploadError.textContent = "Error: " + err.message;
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        reader.onerror = () => { DOM.uploadError.textContent = "No se pudo leer el archivo."; setLoading(false); };
-        reader.readAsArrayBuffer(file);
-    });
+    // ── Carga automática desde GitHub ─────────────────────────────────────────
+    const EXCEL_URL = "https://raw.githubusercontent.com/edsalas15/30-Nuevos-Indicadores/main/Archivodecargaprocesomtto.xlsx";
+
+    async function autoLoadExcel() {
+        try {
+            const response = await fetch(EXCEL_URL + '?t=' + Date.now());
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const buffer = await response.arrayBuffer();
+            processExcelBuffer(buffer);
+        } catch (err) {
+            console.error('AutoLoad error:', err);
+            $('uploadError').textContent = 'No se pudo cargar el archivo automáticamente. Use la carga manual.';
+            $('uploadError').style.display = 'block';
+            $('retryArea').style.display   = 'block';
+            $('autoLoadMsg').style.display  = 'none';
+            // Activar listener manual como respaldo
+            const fi = $('fileInput');
+            if (fi) fi.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setLoading(true);
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try { processExcelBuffer(ev.target.result); }
+                    catch (err) { $('uploadError').textContent = 'Error: ' + err.message; }
+                    finally { setLoading(false); }
+                };
+                reader.onerror = () => { $('uploadError').textContent = 'No se pudo leer el archivo.'; setLoading(false); };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+    }
+
+    // Iniciar carga automática
+    autoLoadExcel();
 
     // ─── Parseo de hojas ─────────────────────────────────────────────────────
     function parseSheetGeneric(sheet, years) {
