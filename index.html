@@ -115,21 +115,47 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.12);
         }
 
+        /* ── Filtros ─────────────────────────────── */
         .filters-wrap {
-            background: #f9f9f9; padding: 15px;
-            border-radius: 8px; margin-bottom: 20px;
+            background: #f9f9f9; padding: 7px;
+            border-radius: 8px; margin-bottom: 10px;
             border: 1px solid #eee;
-            display: flex; flex-direction: column; gap: 10px;
+            display: flex; flex-direction: column; gap: 5px;
         }
-        .filters-row1 { display: flex; gap: 15px; }
-        .filters-row2 {
-            display: flex; gap: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #e0e0e0;
+        .filters-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: flex-end; }
+        .filters-row + .filters-row { padding-top: 5px; border-top: 1px solid #e0e0e0; }
+        .f-item { display: flex; flex-direction: row; align-items: center; gap: 4px; position: relative; }
+        .f-item label { font-size: 8px; font-weight: bold; margin-bottom: 0; color: #666; white-space: nowrap; }
+
+        /* Multiselect dropdowns */
+        .multiselect {
+            padding: 1px 5px; border-radius: 3px; border: 1px solid #ccc;
+            font-size: 9px; height: 20px; cursor: pointer;
+            background: white; min-width: 90px; max-width: 140px;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
-        .f-item { display: flex; flex-direction: column; flex: 1; }
-        label { font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #666; }
-        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+        .dropdown-content {
+            display: none; position: absolute; top: 100%; left: 0;
+            background: white; border: 1px solid #ccc; z-index: 200;
+            max-height: 180px; overflow-y: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12); padding: 4px;
+            min-width: 130px; border-radius: 3px;
+        }
+        .dropdown-content label {
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 5px; cursor: pointer;
+            font-weight: normal; font-size: 10px; color: #333;
+            white-space: nowrap;
+        }
+        .dropdown-content.open { display: block; }
+
+        /* Botón limpiar */
+        .btn-clear {
+            background: var(--rojo); color: white; border: none;
+            padding: 2px 10px; cursor: pointer; border-radius: 3px;
+            font-size: 9px; font-weight: bold; height: 20px;
+        }
+        .btn-clear:hover { opacity: 0.85; }
 
         /* ── KPI Cards ─────────────────────────── */
         .kpi-row {
@@ -184,6 +210,53 @@
         }
 
         .chart-container { height: 490px; position: relative; margin-top: 4px; }
+
+        /* ── Tabla 5.0I ─────────────────────────── */
+        #tablaView { display: none; margin-top: 4px; overflow-x: auto; }
+        #tablaView table {
+            width: 100%; border-collapse: collapse;
+            font-size: 10px; font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+        #tablaView th {
+            background: #333F48; color: #fff;
+            padding: 6px 10px; text-align: center;
+            font-size: 9px; font-weight: 700;
+            letter-spacing: 0.4px; white-space: nowrap;
+            border: 1px solid #4a5a68; position: sticky; top: 0; z-index: 2;
+        }
+        /* Celda "INDICADOR" — color base */
+        #tablaView th.th-indicador {
+            background: #333F48; position: sticky; left: 0; z-index: 3;
+        }
+        /* Celdas de año — color base */
+        #tablaView th.th-anio { background: #333F48; }
+        /* Celdas de mes — color al 60%, sin borde inferior */
+        #tablaView th.th-mes { background: #858C91; font-weight: 600; border-bottom: none; border-left: none; border-right: none; }
+        #tablaView td {
+            padding: 5px 10px; border: 1px solid #eee;
+            text-align: center; white-space: nowrap;
+        }
+        #tablaView td:first-child {
+            background: #f4f4f4; font-weight: 700;
+            font-size: 9px; color: #333F48;
+            position: sticky; left: 0; z-index: 1;
+            border-right: 2px solid #ddd;
+        }
+        #tablaView tr:nth-child(even) td { background: #fafafa; }
+        #tablaView tr:nth-child(even) td:first-child { background: #efefef; }
+        #tablaView tr:hover td { background: #f0f4ff; }
+        #tablaView tr:hover td:first-child { background: #e4e9f4; }
+
+        /* Botón descargar */
+        .btn-download {
+            display: none;
+            background: #227447; color: #fff; border: none;
+            padding: 2px 10px; cursor: pointer; border-radius: 3px;
+            font-size: 9px; font-weight: bold; height: 20px;
+            margin-left: 6px;
+        }
+        .btn-download:hover { background: #1a5c38; }
+        .btn-download.visible { display: inline-block; }
 
         #loadingOverlay {
             display: none; position: absolute; inset: 0;
@@ -242,6 +315,7 @@
                 <button class="tab-btn" onclick="changeDash(4)">5.0E: Costo de Mantenimiento por Unidad</button>
                 <button class="tab-btn" onclick="changeDash(5)">5.0F: % Mantenimiento Preventivo vs Correctivo</button>
                 <button class="tab-btn" onclick="changeDash(6)">5.0G: Cumplimiento del Plan de Mantenimiento</button>
+                <button class="tab-btn" onclick="changeDash(7)">5.0I: Excel Descargable</button>
             </div>
         </div>
 
@@ -268,61 +342,32 @@
             <div id="mainUI" style="display:none;">
                 <div class="filters-wrap">
                     <!-- Fila 1: AÑO · MES -->
-                    <div class="filters-row1">
+                    <div class="filters-row">
                         <div class="f-item">
                             <label>AÑO</label>
-                            <select id="selAnio" onchange="updateCharts()"></select>
+                            <div class="multiselect" id="msANIO">Todos...</div>
+                            <div class="dropdown-content" id="optsANIO"></div>
                         </div>
                         <div class="f-item">
                             <label>MES</label>
-                            <select id="selMes" onchange="updateCharts()">
-                                <option value="TODOS">TODOS</option>
-                                <option value="0">ENE</option>
-                                <option value="1">FEB</option>
-                                <option value="2">MAR</option>
-                                <option value="3">ABR</option>
-                                <option value="4">MAY</option>
-                                <option value="5">JUN</option>
-                                <option value="6">JUL</option>
-                                <option value="7">AGO</option>
-                                <option value="8">SEP</option>
-                                <option value="9">OCT</option>
-                                <option value="10">NOV</option>
-                                <option value="11">DIC</option>
-                            </select>
+                            <div class="multiselect" id="msMES">Todos...</div>
+                            <div class="dropdown-content" id="optsMES"></div>
                         </div>
-                        <div class="f-item" style="visibility:hidden;"></div>
                     </div>
-                    <!-- Fila 2: ZONA · DIVISIÓN -->
-                    <div class="filters-row2">
+                    <!-- Fila 2: ZONA · DIVISIÓN · Limpiar -->
+                    <div class="filters-row">
                         <div class="f-item">
                             <label>ZONA</label>
-                            <select id="selZona" onchange="updateCharts()">
-                                <option value="NACIONAL">NACIONAL</option>
-                                <option value="LOCAL">LOCAL</option>
-                                <option value="FORANEA">FORANEA</option>
-                            </select>
+                            <div class="multiselect" id="msZONA">Todos...</div>
+                            <div class="dropdown-content" id="optsZONA"></div>
                         </div>
                         <div class="f-item">
                             <label>DIVISIÓN</label>
-                            <select id="selDivision" onchange="updateCharts()">
-                                <option value="TODOS">TODOS</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
-                                <option value="D">D</option>
-                                <option value="E">E</option>
-                                <option value="G">G</option>
-                                <option value="H">H</option>
-                                <option value="J">J</option>
-                                <option value="JUAREZ">JUAREZ</option>
-                                <option value="NUEVO LAREDO">NUEVO LAREDO</option>
-                                <option value="SAN LUIS POTOSI">SAN LUIS POTOSI</option>
-                                <option value="REYNOSA">REYNOSA</option>
-                                <option value="VICTORIA">VICTORIA</option>
-                            </select>
+                            <div class="multiselect" id="msDIVISION">Todos...</div>
+                            <div class="dropdown-content" id="optsDIVISION"></div>
                         </div>
-                        <div class="f-item" style="visibility:hidden;"></div>
+                        <button class="btn-clear" onclick="resetFilters()">LIMPIAR FILTROS</button>
+                        <button class="btn-download" id="btnDownload" onclick="downloadExcel()">DESCARGAR</button>
                     </div>
                 </div>
 
@@ -369,10 +414,18 @@
 
                 <div style="position:relative;">
                     <div id="loadingOverlay"><div class="spinner"></div> Cargando datos...</div>
-                    <div class="chart-container">
+                    <div class="chart-container" id="chartArea">
                         <canvas id="myChart"></canvas>
                         <div id="noDataMsg">No hay datos disponibles para los filtros seleccionados.</div>
                     </div>
+                </div>
+
+                <!-- Vista tabla 5.0I -->
+                <div id="tablaView">
+                    <table id="tablaData">
+                        <thead><tr id="tablaHead"></tr></thead>
+                        <tbody id="tablaBody"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -386,7 +439,7 @@ window.addEventListener('load', () => {
     Chart.register(ChartDataLabels);
 
     // ─── Constantes ──────────────────────────────────────────────────────────
-    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G"];
+    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G"]; // idx 0-6; idx 7 = vista tabla 5.0I
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
     const PCT_TABS   = new Set([0, 2, 5, 6]);
 
@@ -397,8 +450,11 @@ window.addEventListener('load', () => {
         "Costo por Atributos",
         "Costo de Mantenimiento por Unidad",
         "Preventivo vs Correctivo",
-        "Cumplimiento Plan de Mantenimiento"
+        "Cumplimiento Plan de Mantenimiento",
+        "Excel Descargable"
     ];
+
+    const TAB_SHORT = ["5.0A Utilización","5.0B Costo Mtto","5.0C Servicio","5.0D Atributos","5.0E Costo/Unidad","5.0F Prev/Corr","5.0G Plan Mtto"];
 
     const TAB_GOALS = [
         90,   // 5.0A
@@ -407,7 +463,8 @@ window.addEventListener('load', () => {
         null, // 5.0D
         null, // 5.0E
         35,   // 5.0F
-        97    // 5.0G
+        97,   // 5.0G
+        null  // 5.0I
     ];
 
     // ─── Estado ──────────────────────────────────────────────────────────────
@@ -415,6 +472,13 @@ window.addEventListener('load', () => {
     let myChart     = null;
     let currentIdx  = 0;
     let debounceTimer = null;
+
+    // ── Estado de filtros multiselect ─────────────────────────
+    let activeFilters = { ANIO: [], MES: [], ZONA: [], DIVISION: [] };
+
+    const MES_NOMBRES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    const ZONAS_OPTS  = ["NACIONAL","LOCAL","FORANEA"];
+    const DIV_OPTS    = ["A","B","C","D","E","G","H","J","JUAREZ","NUEVO LAREDO","SAN LUIS POTOSI","REYNOSA","VICTORIA"];
 
     // ─── Cache de referencias DOM ────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -426,10 +490,7 @@ window.addEventListener('load', () => {
         loadingOverlay: $('loadingOverlay'),
         noDataMsg:    $('noDataMsg'),
         myChart:      $('myChart'),
-        selAnio:      $('selAnio'),
-        selZona:      $('selZona'),
-        selMes:       $('selMes'),
-        selDivision:  $('selDivision'),
+        // selAnio/selZona/selMes/selDivision replaced by multiselect dropdowns
         sidebar:      document.querySelector('.sidebar'),
         tabBtns:      document.querySelectorAll('.tab-btn'),
         // KPI elements
@@ -440,6 +501,66 @@ window.addEventListener('load', () => {
         kpiVarMes:    $('kpiVarMes'),  kpiVarMesSub:  $('kpiVarMesSub'),
         kpiBest:      $('kpiBest'),    kpiBestSub:  $('kpiBestSub'),
         ctName:       $('ctName'),     ctZone:      $('ctZone'),     ctYear: $('ctYear'),
+    };
+
+    // ── Multiselect dropdown logic ────────────────────────────────────────────
+    function buildDropdown(id, options, filterKey) {
+        const el = $(id);
+        if (!el) return;
+        el.innerHTML = options.map(o =>
+            `<label><input type="checkbox" value="${o}" onchange="handleFilterChange('${filterKey}')"> ${o}</label>`
+        ).join('');
+    }
+
+    function initFilters(years) {
+        buildDropdown('optsANIO',     Array.from(years).sort((a,b)=>b-a), 'ANIO');
+        buildDropdown('optsMES',      MES_NOMBRES, 'MES');
+        buildDropdown('optsZONA',     ZONAS_OPTS,  'ZONA');
+        buildDropdown('optsDIVISION', DIV_OPTS,    'DIVISION');
+
+        // Attach toggle to each multiselect button
+        document.querySelectorAll('.multiselect').forEach(ms => {
+            // Remove old listener by cloning
+            const fresh = ms.cloneNode(true);
+            ms.parentNode.replaceChild(fresh, ms);
+            fresh.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const dd = this.nextElementSibling;
+                const wasOpen = dd.classList.contains('open');
+                document.querySelectorAll('.dropdown-content')
+                    .forEach(d => d.classList.remove('open'));
+                if (!wasOpen) dd.classList.add('open');
+            });
+        });
+    }
+
+    document.addEventListener('click', e => {
+        // Close dropdowns only when clicking outside any .f-item
+        if (!e.target.closest('.f-item')) {
+            document.querySelectorAll('.dropdown-content')
+                .forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    window.handleFilterChange = function(field) {
+        const checked = Array.from(
+            document.querySelectorAll('#opts' + field + ' input:checked')
+        ).map(cb => cb.value);
+        activeFilters[field] = checked;
+        const msEl = document.getElementById('ms' + field);
+        if (msEl) msEl.textContent = checked.length > 0 ? checked.join(', ') : 'Todos...';
+        updateCharts();
+    };
+
+    window.resetFilters = function() {
+        ['ANIO','MES','ZONA','DIVISION'].forEach(f => {
+            activeFilters[f] = [];
+            const ms = document.getElementById('ms' + f);
+            if (ms) ms.textContent = 'Todos...';
+            document.querySelectorAll('#opts' + f + ' input')
+                .forEach(cb => cb.checked = false);
+        });
+        updateCharts();
     };
 
     // ─── Toggle de grupos del sidebar ────────────────────────────────────────
@@ -468,6 +589,7 @@ window.addEventListener('load', () => {
         DOM.mainUI.style.display     = 'block';
         DOM.uploadArea.style.display = 'none';
         DOM.sidebar.classList.add('loaded');
+        initFilters(years);
         updateCharts();
     }
 
@@ -556,8 +678,7 @@ window.addEventListener('load', () => {
     }
 
     function populateYearSelector(years) {
-        DOM.selAnio.innerHTML = Array.from(years).sort((a,b)=>b-a)
-            .map(y => `<option value="${y}">${y}</option>`).join('');
+        // Years now handled by multiselect dropdown via initFilters
     }
 
     function setLoading(on) { DOM.loadingOverlay.classList.toggle('visible', on); }
@@ -585,20 +706,169 @@ window.addEventListener('load', () => {
     window.changeDash = function(idx) {
         currentIdx = idx;
         DOM.tabBtns.forEach((btn, i) => btn.classList.toggle('active', i === idx));
-        updateCharts();
+        const isTabla = idx === 7;
+        const chartArea = $('chartArea');
+        const tablaView = $('tablaView');
+        const chartTitle = $('chartTitle');
+        const btnDL = $('btnDownload');
+        if (chartArea)  chartArea.style.display  = isTabla ? 'none' : 'block';
+        if (tablaView)  tablaView.style.display   = isTabla ? 'block' : 'none';
+        if (chartTitle) chartTitle.style.display  = isTabla ? 'none' : 'flex';
+        if (btnDL)      btnDL.classList.toggle('visible', isTabla);
+        if (isTabla) buildTabla();
+        else updateCharts();
+    };
+
+    // ─── Tabla 5.0I ──────────────────────────────────────────────────────────
+    function buildTabla() {
+        const thead = $('tablaHead').closest('thead');
+        const body  = $('tablaBody');
+        if (!thead || !body) return;
+
+        // ── Resolve filters ───────────────────────────────────────────────────
+        const allYears = [...new Set(
+            Object.values(megaStore).flat().map(d => parseInt(d.ANIO)).filter(y => y > 1900)
+        )].sort((a,b) => a - b);
+
+        const selYears = activeFilters.ANIO.length > 0
+            ? activeFilters.ANIO.map(Number).sort((a,b) => a - b)
+            : allYears;
+
+        // Zona: use first selected, fallback to NACIONAL
+        const zona = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+
+        // Months: map selected names to indices (MES_LABELS = MES_NOMBRES)
+        const selMesIdx = activeFilters.MES.length > 0
+            ? activeFilters.MES.map(m => MES_LABELS.indexOf(m)).filter(i => i >= 0)
+            : MES_LABELS.map((_, i) => i);
+
+        // Division filter (for future use — Excel data may not have DIVISION col)
+        const selDiv = activeFilters.DIVISION;
+
+        // ── Row definitions — resolve colKey NOW with current zona value ───────
+        const zonaP = zona + '_PREV';
+        const zonaC = zona + '_CORR';
+        const rowDefs = [
+            { label: '5.0A: Maximización Utilización',         sIdx: 0, colKey: zona,  tabIdx: 0 },
+            { label: '5.0B: Menor Costo Mantenimiento',        sIdx: 1, colKey: zona,  tabIdx: 1 },
+            { label: '5.0C: Cumplimiento Estándares Servicio', sIdx: 2, colKey: zona,  tabIdx: 2 },
+            { label: '5.0D: Menor Costo por Atributos',        sIdx: 3, colKey: zona,  tabIdx: 3 },
+            { label: '5.0E: Costo Mantenimiento por Unidad',   sIdx: 4, colKey: zona,  tabIdx: 4 },
+            { label: '5.0F: % Preventivo',                     sIdx: 5, colKey: zonaP, tabIdx: 5 },
+            { label: '5.0F: % Correctivo',                     sIdx: 5, colKey: zonaC, tabIdx: 5 },
+            { label: '5.0G: Cumplimiento Plan Mantenimiento',  sIdx: 6, colKey: zona,  tabIdx: 6 },
+        ];
+
+        // ── Helper: get value ─────────────────────────────────────────────────
+        const getVal = (sIdx, colKey, yr, mIdx) => {
+            const data = megaStore[sIdx] || [];
+            const rec  = data.find(r => parseInt(r.ANIO) === yr && parseMes(r.MES) === mIdx);
+            if (!rec) return 0;
+            return parseFloat((rec[colKey] ?? '0').toString().replace(/[%,$\s]/g, '')) || 0;
+        };
+
+        // ── Build columns: only include yr/mIdx combos that have ANY data ─────
+        const cols = [];
+        selYears.forEach(yr => {
+            selMesIdx.forEach(mIdx => {
+                const hasAny = rowDefs.some(rd => getVal(rd.sIdx, rd.colKey, yr, mIdx) !== 0);
+                if (hasAny) cols.push({ yr, mIdx, mes: MES_LABELS[mIdx] });
+            });
+        });
+
+        // ── Build year groups for 2-level header ──────────────────────────────
+        const yearGroups = [];
+        cols.forEach(c => {
+            const last = yearGroups[yearGroups.length - 1];
+            if (last && last.yr === c.yr) last.span++;
+            else yearGroups.push({ yr: c.yr, span: 1 });
+        });
+
+        // ── Render header ─────────────────────────────────────────────────────
+        const hRow1 = '<tr>'
+            + '<th class="th-indicador" rowspan="2" style="min-width:220px;text-align:left;padding-left:8px;">INDICADOR</th>'
+            + yearGroups.map(g => `<th class="th-anio" colspan="${g.span}">${g.yr}</th>`).join('')
+            + '</tr>';
+
+        const hRow2 = '<tr>'
+            + cols.map(c => `<th class="th-mes">${c.mes}</th>`).join('')
+            + '</tr>';
+
+        thead.innerHTML = hRow1 + hRow2;
+
+        // ── Render body ───────────────────────────────────────────────────────
+        if (cols.length === 0) {
+            body.innerHTML = `<tr><td colspan="9" style="padding:30px;color:#999;font-style:italic;text-align:center;">Sin datos para los filtros seleccionados</td></tr>`;
+            return;
+        }
+
+        body.innerHTML = rowDefs.map(rd => {
+            const isF    = rd.sIdx === 5;
+            const isPrev = isF && rd.colKey === zonaP;
+            const rowBg  = isPrev ? 'background:#f0f7f3;' : isF ? 'background:#fff5f5;' : '';
+
+            const cells = cols.map(c => {
+                const v = getVal(rd.sIdx, rd.colKey, c.yr, c.mIdx);
+                return v === 0
+                    ? '<td style="color:#ccc;">—</td>'
+                    : `<td>${formatValue(v, rd.tabIdx)}</td>`;
+            }).join('');
+
+            return `<tr style="${rowBg}"><td style="text-align:left;padding-left:8px;">${rd.label}</td>${cells}</tr>`;
+        }).join('');
+    }
+
+    window.downloadExcel = function() {
+        const table = $('tablaData');
+        if (!table) return;
+        // Use SheetJS if available, else fallback to CSV download
+        if (typeof XLSX !== 'undefined') {
+            const wb  = XLSX.utils.book_new();
+            const ws  = XLSX.utils.table_to_sheet(table);
+            // Style header row width
+            const cols = Array(50).fill({ wch: 12 });
+            cols[0] = { wch: 35 };
+            ws['!cols'] = cols;
+            XLSX.utils.book_append_sheet(wb, ws, 'Indicadores');
+            XLSX.writeFile(wb, 'Indicadores_Mantenimiento.xlsx');
+        } else {
+            // CSV fallback
+            const rows = [...table.querySelectorAll('tr')];
+            const csv  = rows.map(r =>
+                [...r.querySelectorAll('th,td')].map(c => '"' + c.textContent.trim() + '"').join(',')
+            ).join('\n');
+            const a = document.createElement('a');
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+            a.download = 'Indicadores_Mantenimiento.csv';
+            a.click();
+        }
     };
 
     // ─── Debounced updateCharts ───────────────────────────────────────────────
     window.updateCharts = function() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(_doUpdate, 80);
+        debounceTimer = setTimeout(() => {
+            if (currentIdx === 7) buildTabla();
+            else _doUpdate();
+        }, 80);
     };
 
     function _doUpdate() {
-        const anio   = parseInt(DOM.selAnio.value);
-        const zona   = DOM.selZona.value;
-        const mesVal = DOM.selMes.value;
         const rawData = megaStore[currentIdx] || [];
+
+        // Resolve active year: first selected, else max year in data
+        const allYears = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
+        const selYears = activeFilters.ANIO.map(Number);
+        const anio     = selYears.length > 0 ? Math.max(...selYears) : (allYears[0] || new Date().getFullYear());
+
+        // Resolve zona: first selected or default NACIONAL
+        const zona = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+
+        // Resolve mes: if exactly one MES selected use it as mesFijo, else null
+        const mesFijo = activeFilters.MES.length === 1
+            ? MES_NOMBRES.indexOf(activeFilters.MES[0])
+            : null;
+        const mesVal  = mesFijo !== null ? String(mesFijo) : 'TODOS';
 
         const hasData = rawData.some(d => {
             const a = parseInt(d.ANIO); return a === anio || a === anio - 1;
@@ -607,7 +877,6 @@ window.addEventListener('load', () => {
         DOM.myChart.style.display = hasData ? 'block' : 'none';
         if (!hasData) { if (myChart) { myChart.destroy(); myChart = null; } return; }
 
-        const mesFijo  = mesVal !== 'TODOS' ? parseInt(mesVal) : null;
         const colKey   = currentIdx === 5 ? `${zona}_PREV` : zona;
         const nowData  = getMonthlyValues(rawData, anio, colKey);
         const pastData = getMonthlyValues(rawData, anio - 1, colKey);
@@ -672,6 +941,12 @@ window.addEventListener('load', () => {
     function buildDatasets(rawData, anio, zona, mesVal, mesFijo, nowData, pastData) {
         const fmtFn  = v => formatValue(v, currentIdx);
         const color  = (base, alpha, i) => mesFijo === null || i === mesFijo ? base : alpha;
+        // Show label only if value > 0 AND month is active
+        const showLbl = (ctx, data) => {
+            const v = data[ctx.dataIndex];
+            if (!v || v === 0) return false;
+            return mesFijo === null || ctx.dataIndex === mesFijo;
+        };
         let datasets = [];
 
         if (currentIdx === 5) {
@@ -681,13 +956,13 @@ window.addEventListener('load', () => {
                 type: 'bar', label: '% Preventivo', data: prevData, stack: 's0',
                 backgroundColor: prevData.map((_,i) => color('#808080','rgba(128,128,128,0.25)',i)),
                 datalabels: { color: '#fff', font:{weight:'bold'}, formatter: fmtFn,
-                    display: ctx => mesFijo===null||ctx.dataIndex===mesFijo }
+                    display: ctx => showLbl(ctx, prevData) }
             });
             datasets.push({
                 type: 'bar', label: '% Correctivo', data: corrData, stack: 's0',
                 backgroundColor: corrData.map((_,i) => color('#C10230','rgba(193,2,48,0.2)',i)),
                 datalabels: { color: '#fff', font:{weight:'bold'}, formatter: fmtFn,
-                    display: ctx => mesFijo===null||ctx.dataIndex===mesFijo }
+                    display: ctx => showLbl(ctx, corrData) }
             });
         } else {
             datasets.push({
@@ -695,14 +970,22 @@ window.addEventListener('load', () => {
                 backgroundColor: nowData.map((_,i) => color('#C10230','rgba(193,2,48,0.2)',i)),
                 datalabels: { anchor:'end', align:'top', color:'#000',
                     font:{weight:'bold'}, formatter: fmtFn,
-                    display: ctx => mesFijo===null||ctx.dataIndex===mesFijo }
+                    display: ctx => showLbl(ctx, nowData) }
             });
         }
 
+        // Sombra año anterior — igual que antes, sin marcadores
+        // Solo el tooltip mostrará el valor al pasar el cursor
         datasets.push({
-            type: 'line', label: `Prev. Año Anterior (${anio-1})`, data: pastData,
-            backgroundColor: 'rgba(217,217,217,0.6)', borderColor: 'transparent',
-            fill: true, pointRadius: 0, tension: 0,
+            type: 'line',
+            label: `Prev. Año Anterior (${anio-1})`,
+            data: pastData,
+            backgroundColor: 'rgba(217,217,217,0.6)',
+            borderColor: 'transparent',
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0,
             datalabels: { display: false }
         });
         return datasets;
@@ -722,6 +1005,31 @@ window.addEventListener('load', () => {
         }}};
     }
 
+    // ─── Clic en gráfica → filtra mes (BI interactivo) ──────────────────────
+    function onChartClick(evt) {
+        if (!myChart) return;
+        const pts = myChart.getElementsAtEventForMode(evt, 'index', { intersect: false }, false);
+        if (!pts.length) return;
+        const clickedMesIdx = pts[0].index;
+        const mesNombre = MES_NOMBRES[clickedMesIdx];
+        // Toggle: si ese mes ya está solo, limpiar; sino seleccionar solo ese mes
+        const soloEseMes = activeFilters.MES.length === 1 && activeFilters.MES[0] === mesNombre;
+        if (soloEseMes) {
+            activeFilters.MES = [];
+            const ms = document.getElementById('msMES');
+            if (ms) ms.textContent = 'Todos...';
+            document.querySelectorAll('#optsMES input').forEach(cb => cb.checked = false);
+        } else {
+            activeFilters.MES = [mesNombre];
+            const ms = document.getElementById('msMES');
+            if (ms) ms.textContent = mesNombre;
+            document.querySelectorAll('#optsMES input').forEach(cb => {
+                cb.checked = cb.value === mesNombre;
+            });
+        }
+        updateCharts();
+    }
+
     // ─── Render de gráfica: update si existe, crear si no ────────────────────
     function _renderChart(datasets) {
         const isPct = PCT_TABS.has(currentIdx);
@@ -730,19 +1038,35 @@ window.addEventListener('load', () => {
             const all = datasets.flatMap(ds => ds.data||[]);
             yMax = all.some(v => v > 1.1) ? 100 : 1;
         }
+
+        // 5.0G (idx 6): padding superior para que etiquetas no se corten
+        const yExtra = currentIdx === 6 ? { grace: '15%' } : {};
+
         const opts = {
             responsive: true, maintainAspectRatio: false,
+            onClick: onChartClick,
             plugins: {
                 legend: { position: 'bottom' },
-                tooltip: { callbacks: {
-                    label: ctx => ` ${ctx.dataset.label}: ${formatValue(ctx.raw??0, currentIdx)}`
-                }},
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        // Mostrar todas las series en el tooltip incluyendo la sombra,
+                        // pero omitir las que tienen valor 0
+                        label: ctx => {
+                            const v = ctx.raw ?? 0;
+                            if (v === 0) return null;
+                            return ` ${ctx.dataset.label}: ${formatValue(v, currentIdx)}`;
+                        }
+                    }
+                },
                 annotation: buildGoalAnnotation(isPct, yMax)
             },
             scales: {
                 x: { stacked: true, grid: { display: false } },
                 y: { stacked: true, beginAtZero: true,
                     ...(isPct ? { max: yMax } : {}),
+                    ...yExtra,
                     grid: { display: false },
                     ticks: { callback: v => formatValue(v, currentIdx) }
                 }
@@ -750,10 +1074,9 @@ window.addEventListener('load', () => {
         };
 
         if (myChart) {
-            // Reusar instancia: solo actualizar datos y opciones
             myChart.data.datasets = datasets;
             myChart.options = { ...myChart.options, ...opts };
-            myChart.update('none'); // 'none' = sin animación para actualizaciones de filtro
+            myChart.update('none');
         } else {
             myChart = new Chart(DOM.myChart, { data: { labels: MES_LABELS, datasets }, options: opts });
         }
