@@ -212,40 +212,91 @@
         .chart-container { height: 490px; position: relative; margin-top: 4px; }
 
         /* ── Tabla 5.0I ─────────────────────────── */
-        #tablaView { display: none; margin-top: 4px; overflow-x: auto; }
+        #tablaView {
+            display: none; margin-top: 8px;
+            border-radius: 10px; overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+        }
+        #tablaScroll {
+            overflow-x: auto; overflow-y: auto;
+            max-height: 520px;
+            border-radius: 10px;
+        }
         #tablaView table {
-            width: 100%; border-collapse: collapse;
-            font-size: 10px; font-family: 'Segoe UI', Tahoma, sans-serif;
+            width: 100%; border-collapse: separate;
+            border-spacing: 0;
+            font-size: 11px; font-family: 'Segoe UI', Tahoma, sans-serif;
         }
-        #tablaView th {
-            background: #333F48; color: #fff;
-            padding: 6px 10px; text-align: center;
-            font-size: 9px; font-weight: 700;
-            letter-spacing: 0.4px; white-space: nowrap;
-            border: 1px solid #4a5a68; position: sticky; top: 0; z-index: 2;
-        }
-        /* Celda "INDICADOR" — color base */
+
+        /* ── Encabezado nivel 1: AÑO ── */
         #tablaView th.th-indicador {
-            background: #333F48; position: sticky; left: 0; z-index: 3;
+            background: #333F48; color: #fff;
+            padding: 9px 14px; text-align: left;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+            white-space: nowrap; min-width: 240px;
+            position: sticky; left: 0; top: 0; z-index: 5;
+            border-bottom: 2px solid #4a5a68;
         }
-        /* Celdas de año — color base */
-        #tablaView th.th-anio { background: #333F48; }
-        /* Celdas de mes — color al 60%, sin borde inferior */
-        #tablaView th.th-mes { background: #858C91; font-weight: 600; border-bottom: none; border-left: none; border-right: none; }
-        #tablaView td {
-            padding: 5px 10px; border: 1px solid #eee;
-            text-align: center; white-space: nowrap;
+        #tablaView th.th-anio {
+            background: #333F48; color: #fff;
+            padding: 8px 12px; text-align: center;
+            font-size: 11px; font-weight: 700;
+            white-space: nowrap; letter-spacing: 0.4px;
+            position: sticky; top: 0; z-index: 2;
+            border-left: 2px solid #4a5a68;
+            border-bottom: 1px solid #4a5a68;
         }
-        #tablaView td:first-child {
-            background: #f4f4f4; font-weight: 700;
-            font-size: 9px; color: #333F48;
+        /* ── Encabezado nivel 2: MES ── */
+        #tablaView th.th-mes {
+            background: #858C91; color: #fff;
+            padding: 6px 10px; text-align: center;
+            font-size: 9px; font-weight: 600;
+            white-space: nowrap; letter-spacing: 0.3px;
+            position: sticky; top: 32px; z-index: 2;
+            border-left: 1px solid #9aa0a5;
+            border-bottom: 2px solid #6b7278;
+        }
+
+        /* ── Celda indicador (col izquierda) ── */
+        #tablaView td.td-label {
+            background: #f4f6f8; color: #333F48;
+            font-size: 10px; font-weight: 700;
+            padding: 7px 14px; text-align: left;
+            white-space: nowrap;
             position: sticky; left: 0; z-index: 1;
-            border-right: 2px solid #ddd;
+            border-right: 2px solid #d0d5db;
+            border-bottom: 1px solid #e4e8ec;
         }
-        #tablaView tr:nth-child(even) td { background: #fafafa; }
-        #tablaView tr:nth-child(even) td:first-child { background: #efefef; }
-        #tablaView tr:hover td { background: #f0f4ff; }
-        #tablaView tr:hover td:first-child { background: #e4e9f4; }
+
+        /* ── Celdas de datos ── */
+        #tablaView td.td-val {
+            padding: 7px 12px; text-align: center;
+            white-space: nowrap; font-size: 11px;
+            border-bottom: 1px solid #eef0f3;
+            border-left: 1px solid #eef0f3;
+            color: #2c2c2c;
+        }
+        #tablaView td.td-val.td-empty { color: #c8cdd3; font-size: 10px; }
+
+        /* ── Filas alternas ── */
+        #tablaView tbody tr:nth-child(even) td.td-val  { background: #f9fafb; }
+        #tablaView tbody tr:nth-child(even) td.td-label { background: #edf0f3; }
+
+        /* ── Hover ── */
+        #tablaView tbody tr:hover td.td-val   { background: #edf3ff; }
+        #tablaView tbody tr:hover td.td-label { background: #dce6f0; }
+
+        /* ── Filas especiales 5.0F ── */
+        #tablaView tr.row-prev td.td-val   { background: #f0f8f3; }
+        #tablaView tr.row-prev td.td-label { background: #e4f2ea; color: #1a5c38; }
+        #tablaView tr.row-corr td.td-val   { background: #fff5f5; }
+        #tablaView tr.row-corr td.td-label { background: #fde8e8; color: #8b1c1c; }
+        #tablaView tr.row-prev:hover td.td-val,
+        #tablaView tr.row-corr:hover td.td-val { background: #edf3ff; }
+
+        /* ── Separador entre grupos de años ── */
+        #tablaView td.td-year-start,
+        #tablaView th.th-year-start { border-left: 2px solid #9aa0a5 !important; }
 
         /* Botón descargar */
         .btn-download {
@@ -422,10 +473,12 @@
 
                 <!-- Vista tabla 5.0I -->
                 <div id="tablaView">
-                    <table id="tablaData">
-                        <thead><tr id="tablaHead"></tr></thead>
-                        <tbody id="tablaBody"></tbody>
-                    </table>
+                    <div id="tablaScroll">
+                        <table id="tablaData">
+                            <thead id="tablaHead"></thead>
+                            <tbody id="tablaBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -721,7 +774,7 @@ window.addEventListener('load', () => {
 
     // ─── Tabla 5.0I ──────────────────────────────────────────────────────────
     function buildTabla() {
-        const thead = $('tablaHead').closest('thead');
+        const thead = $('tablaHead');
         const body  = $('tablaBody');
         if (!thead || !body) return;
 
@@ -731,35 +784,28 @@ window.addEventListener('load', () => {
         )].sort((a,b) => a - b);
 
         const selYears = activeFilters.ANIO.length > 0
-            ? activeFilters.ANIO.map(Number).sort((a,b) => a - b)
+            ? activeFilters.ANIO.map(Number).filter(y => !isNaN(y)).sort((a,b) => a - b)
             : allYears;
 
-        // Zona: use first selected, fallback to NACIONAL
-        const zona = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
-
-        // Months: map selected names to indices (MES_LABELS = MES_NOMBRES)
+        const zona     = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
         const selMesIdx = activeFilters.MES.length > 0
             ? activeFilters.MES.map(m => MES_LABELS.indexOf(m)).filter(i => i >= 0)
             : MES_LABELS.map((_, i) => i);
 
-        // Division filter (for future use — Excel data may not have DIVISION col)
-        const selDiv = activeFilters.DIVISION;
-
-        // ── Row definitions — resolve colKey NOW with current zona value ───────
         const zonaP = zona + '_PREV';
         const zonaC = zona + '_CORR';
+
         const rowDefs = [
-            { label: '5.0A: Maximización Utilización',         sIdx: 0, colKey: zona,  tabIdx: 0 },
-            { label: '5.0B: Menor Costo Mantenimiento',        sIdx: 1, colKey: zona,  tabIdx: 1 },
-            { label: '5.0C: Cumplimiento Estándares Servicio', sIdx: 2, colKey: zona,  tabIdx: 2 },
-            { label: '5.0D: Menor Costo por Atributos',        sIdx: 3, colKey: zona,  tabIdx: 3 },
-            { label: '5.0E: Costo Mantenimiento por Unidad',   sIdx: 4, colKey: zona,  tabIdx: 4 },
-            { label: '5.0F: % Preventivo',                     sIdx: 5, colKey: zonaP, tabIdx: 5 },
-            { label: '5.0F: % Correctivo',                     sIdx: 5, colKey: zonaC, tabIdx: 5 },
-            { label: '5.0G: Cumplimiento Plan Mantenimiento',  sIdx: 6, colKey: zona,  tabIdx: 6 },
+            { label: '5.0A: Maximización Utilización',         sIdx: 0, colKey: zona,  tabIdx: 0, rowCls: '' },
+            { label: '5.0B: Menor Costo Mantenimiento',        sIdx: 1, colKey: zona,  tabIdx: 1, rowCls: '' },
+            { label: '5.0C: Cumplimiento Estándares Servicio', sIdx: 2, colKey: zona,  tabIdx: 2, rowCls: '' },
+            { label: '5.0D: Menor Costo por Atributos',        sIdx: 3, colKey: zona,  tabIdx: 3, rowCls: '' },
+            { label: '5.0E: Costo Mantenimiento por Unidad',   sIdx: 4, colKey: zona,  tabIdx: 4, rowCls: '' },
+            { label: '5.0F: % Preventivo',                     sIdx: 5, colKey: zonaP, tabIdx: 5, rowCls: 'row-prev' },
+            { label: '5.0F: % Correctivo',                     sIdx: 5, colKey: zonaC, tabIdx: 5, rowCls: 'row-corr' },
+            { label: '5.0G: Cumplimiento Plan Mantenimiento',  sIdx: 6, colKey: zona,  tabIdx: 6, rowCls: '' },
         ];
 
-        // ── Helper: get value ─────────────────────────────────────────────────
         const getVal = (sIdx, colKey, yr, mIdx) => {
             const data = megaStore[sIdx] || [];
             const rec  = data.find(r => parseInt(r.ANIO) === yr && parseMes(r.MES) === mIdx);
@@ -767,7 +813,7 @@ window.addEventListener('load', () => {
             return parseFloat((rec[colKey] ?? '0').toString().replace(/[%,$\s]/g, '')) || 0;
         };
 
-        // ── Build columns: only include yr/mIdx combos that have ANY data ─────
+        // ── Build visible columns ─────────────────────────────────────────────
         const cols = [];
         selYears.forEach(yr => {
             selMesIdx.forEach(mIdx => {
@@ -776,72 +822,71 @@ window.addEventListener('load', () => {
             });
         });
 
-        // ── Build year groups for 2-level header ──────────────────────────────
+        if (cols.length === 0) {
+            thead.innerHTML = '';
+            body.innerHTML  = '<tr><td colspan="2" style="padding:40px;color:#aaa;text-align:center;font-style:italic;">Sin datos para los filtros seleccionados</td></tr>';
+            return;
+        }
+
+        // ── Year groups for spanning header ───────────────────────────────────
         const yearGroups = [];
-        cols.forEach(c => {
+        cols.forEach((c, ci) => {
             const last = yearGroups[yearGroups.length - 1];
-            if (last && last.yr === c.yr) last.span++;
-            else yearGroups.push({ yr: c.yr, span: 1 });
+            if (last && last.yr === c.yr) { last.span++; }
+            else yearGroups.push({ yr: c.yr, span: 1, startIdx: ci });
         });
 
-        // ── Render header ─────────────────────────────────────────────────────
+        // Track which column indices start a new year (for border styling)
+        const yearStartCols = new Set(yearGroups.map(g => g.startIdx));
+
+        // ── Render 2-level <thead> ────────────────────────────────────────────
         const hRow1 = '<tr>'
-            + '<th class="th-indicador" rowspan="2" style="min-width:220px;text-align:left;padding-left:8px;">INDICADOR</th>'
-            + yearGroups.map(g => `<th class="th-anio" colspan="${g.span}">${g.yr}</th>`).join('')
+            + '<th class="th-indicador" rowspan="2">INDICADOR</th>'
+            + yearGroups.map(g =>
+                `<th class="th-anio th-year-start" colspan="${g.span}">${g.yr}</th>`
+              ).join('')
             + '</tr>';
 
         const hRow2 = '<tr>'
-            + cols.map(c => `<th class="th-mes">${c.mes}</th>`).join('')
+            + cols.map((c, ci) => {
+                const startCls = yearStartCols.has(ci) ? ' th-year-start' : '';
+                return `<th class="th-mes${startCls}">${c.mes}</th>`;
+              }).join('')
             + '</tr>';
 
         thead.innerHTML = hRow1 + hRow2;
 
-        // ── Render body ───────────────────────────────────────────────────────
-        if (cols.length === 0) {
-            body.innerHTML = `<tr><td colspan="9" style="padding:30px;color:#999;font-style:italic;text-align:center;">Sin datos para los filtros seleccionados</td></tr>`;
-            return;
-        }
-
+        // ── Render <tbody> ────────────────────────────────────────────────────
         body.innerHTML = rowDefs.map(rd => {
-            const isF    = rd.sIdx === 5;
-            const isPrev = isF && rd.colKey === zonaP;
-            const rowBg  = isPrev ? 'background:#f0f7f3;' : isF ? 'background:#fff5f5;' : '';
-
-            const cells = cols.map(c => {
-                const v = getVal(rd.sIdx, rd.colKey, c.yr, c.mIdx);
-                return v === 0
-                    ? '<td style="color:#ccc;">—</td>'
-                    : `<td>${formatValue(v, rd.tabIdx)}</td>`;
+            const labelCell = `<td class="td-label">${rd.label}</td>`;
+            const dataCells = cols.map((c, ci) => {
+                const v        = getVal(rd.sIdx, rd.colKey, c.yr, c.mIdx);
+                const startCls = yearStartCols.has(ci) ? ' td-year-start' : '';
+                if (v === 0) return `<td class="td-val td-empty${startCls}">—</td>`;
+                return `<td class="td-val${startCls}">${formatValue(v, rd.tabIdx)}</td>`;
             }).join('');
-
-            return `<tr style="${rowBg}"><td style="text-align:left;padding-left:8px;">${rd.label}</td>${cells}</tr>`;
+            return `<tr class="${rd.rowCls}">${labelCell}${dataCells}</tr>`;
         }).join('');
     }
 
     window.downloadExcel = function() {
         const table = $('tablaData');
         if (!table) return;
-        // Use SheetJS if available, else fallback to CSV download
-        if (typeof XLSX !== 'undefined') {
-            const wb  = XLSX.utils.book_new();
-            const ws  = XLSX.utils.table_to_sheet(table);
-            // Style header row width
-            const cols = Array(50).fill({ wch: 12 });
-            cols[0] = { wch: 35 };
-            ws['!cols'] = cols;
-            XLSX.utils.book_append_sheet(wb, ws, 'Indicadores');
-            XLSX.writeFile(wb, 'Indicadores_Mantenimiento.xlsx');
-        } else {
-            // CSV fallback
-            const rows = [...table.querySelectorAll('tr')];
-            const csv  = rows.map(r =>
-                [...r.querySelectorAll('th,td')].map(c => '"' + c.textContent.trim() + '"').join(',')
-            ).join('\n');
-            const a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-            a.download = 'Indicadores_Mantenimiento.csv';
-            a.click();
-        }
+        // Export as CSV — works without any external library
+        const rows = [...table.querySelectorAll('tr')];
+        const csv  = rows.map(r =>
+            [...r.querySelectorAll('th,td')].map(c => '"' + c.textContent.trim().replace(/"/g, '""') + '"').join(',')
+        ).join('\n');
+        const bom  = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'Indicadores_Mantenimiento.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     // ─── Debounced updateCharts ───────────────────────────────────────────────
