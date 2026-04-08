@@ -372,6 +372,42 @@
 
         <!-- Grupos futuros (5.1, 5.2, etc.) se agregan aquí con la misma estructura -->
 
+        <!-- Grupo 5.1 -->
+        <div class="nav-group" id="group-5-1">
+            <div class="nav-group-header" onclick="toggleGroup('group-5-1')">
+                <span>5.1 Detección de Fallas y Generación de OT's</span>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="nav-children" id="children-group-5-1">
+                <button class="tab-btn" onclick="changeDash(8)">5.1D: Clasificación Correcta de Fallas</button>
+                <button class="tab-btn" onclick="changeDash(9)">5.1E: Tasa de Conversión</button>
+            </div>
+        </div>
+
+        <!-- Grupo 5.2 -->
+        <div class="nav-group" id="group-5-2">
+            <div class="nav-group-header" onclick="toggleGroup('group-5-2')">
+                <span>5.2 Planeación de Órdenes de Trabajo</span>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="nav-children" id="children-group-5-2">
+                <button class="tab-btn" onclick="changeDash(10)">5.2A: Cumplimiento del Plan Mensual</button>
+                <button class="tab-btn" onclick="changeDash(11)">5.2E: Backlog Pendiente de Planear</button>
+                <button class="tab-btn" onclick="changeDash(12)">5.2H: Plan de Mantenimiento Preventivo</button>
+            </div>
+        </div>
+
+        <!-- Grupo 5.3 -->
+        <div class="nav-group" id="group-5-3">
+            <div class="nav-group-header" onclick="toggleGroup('group-5-3')">
+                <span>5.3 Programación de Órdenes de Trabajo</span>
+                <span class="arrow">&#9654;</span>
+            </div>
+            <div class="nav-children" id="children-group-5-3">
+                <button class="tab-btn" onclick="changeDash(13)">5.3A: Cumplimiento Programación Semanal</button>
+            </div>
+        </div>
+
     </nav>
 
     <!-- ── Contenido principal ── -->
@@ -471,6 +507,17 @@
                     </div>
                 </div>
 
+                <!-- Mensaje pendiente para nuevas pestañas sin datos -->
+                <div id="pendingMsg" style="display:none; flex-direction:column; align-items:center;
+                     justify-content:center; height:400px; color:#aaa; gap:14px;">
+                    <div style="font-size:48px;">🔧</div>
+                    <div style="font-size:16px; font-weight:700; color:#555;">Próximamente</div>
+                    <div style="font-size:12px; text-align:center; max-width:320px; line-height:1.6;">
+                        Esta pestaña está en construcción.<br>
+                        La información estará disponible próximamente en el Excel de carga.
+                    </div>
+                </div>
+
                 <!-- Vista tabla 5.0I -->
                 <div id="tablaView">
                     <div id="tablaScroll">
@@ -492,32 +539,46 @@ window.addEventListener('load', () => {
     Chart.register(ChartDataLabels);
 
     // ─── Constantes ──────────────────────────────────────────────────────────
-    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G"]; // idx 0-6; idx 7 = vista tabla 5.0I
+    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G"]; // idx 0-6; idx 7 = tabla 5.0I
+    // idx 8-13: nuevas pestañas (sin datos aún — pendiente de Excel)
+    const NEW_TABS   = [8, 9, 10, 11, 12, 13]; // índices sin hoja Excel asignada todavía
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-    const PCT_TABS   = new Set([0, 2, 5, 6]);
+    const PCT_TABS   = new Set([0, 2, 5, 6, 10]); // 10=5.2A mirrors 5.0G
 
     const TAB_NAMES = [
-        "Maximización de Utilización",
-        "Costo de Mantenimiento",
-        "Cumplimiento Estándares de Servicio",
-        "Costo por Atributos",
-        "Costo de Mantenimiento por Unidad",
-        "Preventivo vs Correctivo",
-        "Cumplimiento Plan de Mantenimiento",
-        "Excel Descargable"
+        "Maximización de Utilización",           // 0 — 5.0A
+        "Costo de Mantenimiento",                // 1 — 5.0B
+        "Cumplimiento Estándares de Servicio",   // 2 — 5.0C
+        "Costo por Atributos",                   // 3 — 5.0D
+        "Costo de Mantenimiento por Unidad",     // 4 — 5.0E
+        "Preventivo vs Correctivo",              // 5 — 5.0F
+        "Cumplimiento Plan de Mantenimiento",    // 6 — 5.0G
+        "Excel Descargable",                     // 7 — 5.0I
+        "Clasificación Correcta de Fallas",      // 8 — 5.1D
+        "Tasa de Conversión",                    // 9 — 5.1E
+        "Cumplimiento del Plan Mensual",         // 10 — 5.2A
+        "Backlog Pendiente de Planear",          // 11 — 5.2E
+        "Plan de Mantenimiento Preventivo",      // 12 — 5.2H
+        "Cumplimiento Programación Semanal",     // 13 — 5.3A
     ];
 
     const TAB_SHORT = ["5.0A Utilización","5.0B Costo Mtto","5.0C Servicio","5.0D Atributos","5.0E Costo/Unidad","5.0F Prev/Corr","5.0G Plan Mtto"];
 
     const TAB_GOALS = [
-        90,   // 5.0A
-        null, // 5.0B
-        90,   // 5.0C
-        null, // 5.0D
-        null, // 5.0E
-        35,   // 5.0F
-        97,   // 5.0G
-        null  // 5.0I
+        90,   // 0 — 5.0A
+        null, // 1 — 5.0B
+        90,   // 2 — 5.0C
+        null, // 3 — 5.0D
+        null, // 4 — 5.0E
+        35,   // 5 — 5.0F
+        97,   // 6 — 5.0G
+        null, // 7 — 5.0I
+        null, // 8 — 5.1D (pendiente)
+        null, // 9 — 5.1E (pendiente)
+        97,   // 10 — 5.2A (misma meta que 5.0G)
+        null, // 11 — 5.2E (pendiente)
+        null, // 12 — 5.2H (pendiente)
+        null, // 13 — 5.3A (pendiente)
     ];
 
     // ─── Estado ──────────────────────────────────────────────────────────────
@@ -759,17 +820,23 @@ window.addEventListener('load', () => {
     window.changeDash = function(idx) {
         currentIdx = idx;
         DOM.tabBtns.forEach((btn, i) => btn.classList.toggle('active', i === idx));
-        const isTabla = idx === 7;
-        const chartArea = $('chartArea');
-        const tablaView = $('tablaView');
+
+        const isTabla   = idx === 7;
+        const isNewTab  = NEW_TABS.includes(idx);   // pestañas sin datos aún
+        const chartArea  = $('chartArea');
+        const tablaView  = $('tablaView');
         const chartTitle = $('chartTitle');
-        const btnDL = $('btnDownload');
-        if (chartArea)  chartArea.style.display  = isTabla ? 'none' : 'block';
+        const btnDL      = $('btnDownload');
+        const pendingMsg = $('pendingMsg');
+
+        if (chartArea)  chartArea.style.display  = (isTabla || isNewTab) ? 'none' : 'block';
         if (tablaView)  tablaView.style.display   = isTabla ? 'block' : 'none';
-        if (chartTitle) chartTitle.style.display  = isTabla ? 'none' : 'flex';
+        if (chartTitle) chartTitle.style.display  = (isTabla || isNewTab) ? 'none' : 'flex';
         if (btnDL)      btnDL.classList.toggle('visible', isTabla);
-        if (isTabla) buildTabla();
-        else updateCharts();
+        if (pendingMsg) pendingMsg.style.display  = isNewTab ? 'flex' : 'none';
+
+        if (isTabla)   buildTabla();
+        else if (!isNewTab) updateCharts();
     };
 
     // ─── Tabla 5.0I ──────────────────────────────────────────────────────────
@@ -899,7 +966,9 @@ window.addEventListener('load', () => {
     };
 
     function _doUpdate() {
-        const rawData = megaStore[currentIdx] || [];
+        // 5.2A (idx 10) mirrors 5.0G (idx 6) — same data, same chart
+        const effectiveIdx = currentIdx === 10 ? 6 : currentIdx;
+        const rawData = megaStore[effectiveIdx] || [];
 
         // Resolve active year: first selected, else max year in data
         const allYears = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
@@ -922,7 +991,7 @@ window.addEventListener('load', () => {
         DOM.myChart.style.display = hasData ? 'block' : 'none';
         if (!hasData) { if (myChart) { myChart.destroy(); myChart = null; } return; }
 
-        const colKey   = currentIdx === 5 ? `${zona}_PREV` : zona;
+        const colKey   = effectiveIdx === 5 ? `${zona}_PREV` : zona;
         const nowData  = getMonthlyValues(rawData, anio, colKey);
         const pastData = getMonthlyValues(rawData, anio - 1, colKey);
 
