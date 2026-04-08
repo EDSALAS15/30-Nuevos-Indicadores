@@ -941,35 +941,67 @@ window.addEventListener('load', () => {
     function updateKPIs(nowData, pastData, anio, mesVal, mesFijo) {
         const isPct = PCT_TABS.has(currentIdx);
         const fmt   = v => formatValue(v, currentIdx);
-        const mesIdx = mesFijo !== null ? mesFijo : new Date().getMonth();
+
+        // ── Último mes con dato cargado en el año actual ──────────────────────
+        // Se usa en todas las tarjetas que dicen "mes actual"
+        let lastLoadedIdx = -1;
+        for (let i = 11; i >= 0; i--) {
+            if (nowData[i] !== 0) { lastLoadedIdx = i; break; }
+        }
+        // Si hay un mes fijo seleccionado por filtro, ese tiene prioridad
+        const mesIdx = mesFijo !== null ? mesFijo : (lastLoadedIdx >= 0 ? lastLoadedIdx : new Date().getMonth());
         const mesLbl = MES_LABELS[mesIdx] || '—';
         const mesNow = nowData[mesIdx] ?? 0;
 
+        // ── KPI 1: Acumulado año (solo meses con dato) ────────────────────────
         const acum     = calcAcum(nowData, isPct);
-        const acumPast = calcAcum(pastData, isPct);
-        const varAcumPct = acumPast !== 0 ? ((acum - acumPast) / Math.abs(acumPast)) * 100 : 0;
-
         DOM.kpiAcum.textContent    = fmt(acum);
         DOM.kpiAcumSub.textContent = isPct ? 'Promedio anual' : 'Total acumulado';
 
+        // ── KPI 2: Variación acumulado vs mismo período año anterior ─────────
+        // Detectar qué meses del año actual tienen dato (el "período disponible")
+        const mesesConDato = nowData.map((v, i) => v !== 0 ? i : -1).filter(i => i >= 0);
+        // Sumar el año anterior SOLO para esos mismos meses
+        const acumPastMismoPeriodo = mesesConDato.reduce((sum, mIdx_) => {
+            return sum + (pastData[mIdx_] ?? 0);
+        }, 0);
+        const acumNowMismoPeriodo = mesesConDato.reduce((sum, mIdx_) => {
+            return sum + (nowData[mIdx_] ?? 0);
+        }, 0);
+        // Para porcentajes usar promedio, para dinero usar suma
+        const acumNowCmp  = isPct
+            ? (mesesConDato.length ? acumNowMismoPeriodo  / mesesConDato.length : 0)
+            : acumNowMismoPeriodo;
+        const acumPastCmp = isPct
+            ? (mesesConDato.length ? acumPastMismoPeriodo / mesesConDato.length : 0)
+            : acumPastMismoPeriodo;
+        const varAcumPct  = acumPastCmp !== 0
+            ? ((acumNowCmp - acumPastCmp) / Math.abs(acumPastCmp)) * 100 : 0;
+        const periodoLbl  = mesesConDato.length > 0
+            ? `${MES_LABELS[mesesConDato[0]]}–${MES_LABELS[mesesConDato[mesesConDato.length-1]]}`
+            : 'Sin datos';
         DOM.kpiVar.innerHTML      = makeDelta(varAcumPct);
-        DOM.kpiVarSub.textContent = `Acum. ${anio} vs ${anio-1}`;
+        DOM.kpiVarSub.textContent = `${periodoLbl} ${anio} vs ${anio-1}`;
 
+        // ── KPI 3: Mes actual (último mes cargado) ────────────────────────────
         DOM.kpiMes.textContent    = fmt(mesNow);
         DOM.kpiMesSub.textContent = `${mesLbl} ${anio}`;
 
+        // ── KPI 4: Var. mes actual vs mismo mes año anterior ─────────────────
         const mesNowPastYear = pastData[mesIdx] ?? 0;
         const varMesAnoPct   = mesNowPastYear !== 0
             ? ((mesNow - mesNowPastYear) / Math.abs(mesNowPastYear)) * 100 : 0;
         DOM.kpiVarAcum.innerHTML      = makeDelta(varMesAnoPct);
         DOM.kpiVarAcumSub.textContent = `${mesLbl} ${anio}: ${fmt(mesNow)} vs ${anio-1}: ${fmt(mesNowPastYear)}`;
 
+        // ── KPI 5: Var. mes actual vs mes anterior ────────────────────────────
         const mesIdxPrev = mesIdx > 0 ? mesIdx - 1 : 11;
         const mesPrev    = nowData[mesIdxPrev] ?? 0;
         const varMesPct  = mesPrev !== 0 ? ((mesNow - mesPrev) / Math.abs(mesPrev)) * 100 : 0;
         DOM.kpiVarMes.innerHTML      = makeDelta(varMesPct);
         DOM.kpiVarMesSub.textContent = `${mesLbl} vs ${MES_LABELS[mesIdxPrev]}`;
 
+        // ── KPI 6: Mejor mes del año ──────────────────────────────────────────
         const bestIdx = nowData.indexOf(Math.max(...nowData));
         DOM.kpiBest.textContent    = fmt(nowData[bestIdx] ?? 0);
         DOM.kpiBestSub.textContent = MES_LABELS[bestIdx] ?? '—';
@@ -1043,7 +1075,7 @@ window.addEventListener('load', () => {
         const goalVal = (isPct && yMax === 1) ? goal / 100 : goal;
         return { annotations: { metaLine: {
             type: 'line', yMin: goalVal, yMax: goalVal,
-            borderColor: '#0070C0', borderWidth: 2, borderDash: [6,4],
+            borderColor: '#0070C0', borderWidth: 2,
             label: { display: true, content: `Meta: ${goal}${isPct?'%':''}`,
                 position: 'end', backgroundColor: '#0070C0', color: '#fff',
                 font: { size:10, weight:'bold' }, padding:{x:6,y:3}, borderRadius:4 }
