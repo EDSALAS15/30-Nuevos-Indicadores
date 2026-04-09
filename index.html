@@ -930,7 +930,7 @@ window.addEventListener('load', () => {
         const isTabla   = idx === 7;
         // A tab is "pending" if it's in NEW_TABS OR if it has no data loaded yet
         const hasSheetData = idx < SHEETS.length && SHEETS[idx] && (megaStore[idx] || []).length > 0;
-        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 10 && idx !== 12);
+        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 10 && idx !== 12 && idx !== 13);
         const chartArea  = $('chartArea');
         const tablaView  = $('tablaView');
         const chartTitle = $('chartTitle');
@@ -1069,7 +1069,7 @@ window.addEventListener('load', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             if (currentIdx === 7) buildTabla();
-            else _doUpdate();
+            else _doUpdate(); // _doUpdate routes to _doUpdateWeekly for idx 13
         }, 80);
     };
 
@@ -1277,14 +1277,28 @@ window.addEventListener('load', () => {
         noData.classList.remove('visible');
         canvas.style.display = 'block';
 
-        // Build weekly values
+        // Build weekly values — try multiple possible column names for SEMANA
+        const getSemanaVal = (d) => {
+            for (const key of Object.keys(d)) {
+                if (key.toUpperCase().includes('SEMANA') || key.toUpperCase() === 'SEM' || key.toUpperCase() === 'WEEK') {
+                    const v = parseInt(d[key]);
+                    if (!isNaN(v)) return v;
+                }
+            }
+            return NaN;
+        };
+        const getZonaVal = (d, z) => {
+            // Try exact zona key, then case-insensitive match
+            if (d[z] !== undefined) return parseFloat((d[z] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0;
+            const key = Object.keys(d).find(k => k.toUpperCase() === z.toUpperCase());
+            return key ? (parseFloat((d[key] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0) : 0;
+        };
         const getWeeklyVals = (year) => {
             const result = {};
             rawData.filter(d => parseInt(d.ANIO) === year).forEach(d => {
-                const sem = parseInt(d.SEMANA);
-                if (!isNaN(sem)) {
-                    const v = parseFloat((d[zona] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0;
-                    result[sem] = v;
+                const sem = getSemanaVal(d);
+                if (!isNaN(sem) && sem > 0) {
+                    result[sem] = getZonaVal(d, zona);
                 }
             });
             return result;
