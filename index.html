@@ -583,7 +583,7 @@ window.addEventListener('load', () => {
         97,   // 10 — 5.2A (misma meta que 5.0G)
         null, // 11 — 5.2E (pendiente)
         97,   // 12 — 5.2H (replica 5.0G)
-        90,   // 13 — 5.3A Cumplimiento Programación Semanal
+        97,   // 13 — 5.3A Cumplimiento Programación Semanal
     ];
 
     // ─── Estado ──────────────────────────────────────────────────────────────
@@ -597,6 +597,15 @@ window.addEventListener('load', () => {
 
     const MES_NOMBRES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
     const ZONAS_OPTS  = ["NACIONAL","LOCAL","FORANEA"];
+
+    // ZONA logic: if LOCAL+FORANEA both selected (or NACIONAL) → use NACIONAL column
+    function resolveZona() {
+        const sel = activeFilters.ZONA;
+        if (sel.length === 0) return 'NACIONAL';
+        if (sel.includes('NACIONAL')) return 'NACIONAL';
+        if (sel.includes('LOCAL') && sel.includes('FORANEA')) return 'NACIONAL';
+        return sel[0]; // single selection: LOCAL or FORANEA
+    }
 
     // Estructura jerárquica: ZONA → SUBZONA → DIVISIONES
     // Fuente: Estructura_de_filtros.xlsx
@@ -685,15 +694,14 @@ window.addEventListener('load', () => {
     }
 
     function rebuildCascade() {
-        // Rebuild SUBZONA and DIVISION options based on current ZONA selection
-        const subOpts = getSubzonaOpts();
-        const divOpts = getDivOpts();
+        // Rebuild SUBZONA and DIVISION based on ZONA + actual loaded data
+        const { subs: subOpts, divs: divOpts } = getAvailableSubzonas();
 
-        // Remove selected values that no longer exist in filtered list
-        activeFilters.SUBZONA = activeFilters.SUBZONA.filter(v => subOpts.includes(v));
+        // Remove selected values no longer in filtered list
+        activeFilters.SUBZONA  = activeFilters.SUBZONA.filter(v => subOpts.includes(v));
         activeFilters.DIVISION = activeFilters.DIVISION.filter(v => divOpts.includes(v));
 
-        buildDropdownOpts('optsSUBZONA', subOpts, 'SUBZONA');
+        buildDropdownOpts('optsSUBZONA',  subOpts, 'SUBZONA');
         buildDropdownOpts('optsDIVISION', divOpts, 'DIVISION');
 
         // Restore checked state
@@ -706,12 +714,50 @@ window.addEventListener('load', () => {
         });
     }
 
+    // Compute which subzonas+divs actually appear in loaded data
+    function getAvailableSubzonas() {
+        const allRows = Object.values(megaStore).flat();
+        const selYrs  = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
+        const rows    = selYrs.length > 0 ? allRows.filter(d => selYrs.includes(parseInt(d.ANIO))) : allRows;
+        // Get unique division values that have data
+        const activeDivs = new Set();
+        rows.forEach(d => {
+            Object.keys(d).forEach(k => {
+                if (d[k] && parseFloat(d[k]) > 0) activeDivs.add(k);
+            });
+        });
+        // Filter FILTER_TREE to only show entries with active data
+        const selZonas    = activeFilters.ZONA;
+        const selSubzonas = activeFilters.SUBZONA;
+        const zonas = selZonas.length === 0 ? ['LOCAL','FORANEA'] : selZonas;
+
+        const availSubs = [...new Set(
+            FILTER_TREE
+                .filter(r => zonas.some(z => z === r.zona || z === 'NACIONAL'))
+                .filter(r => r.divs.some(d => activeDivs.has(d)))
+                .map(r => r.subzona)
+        )].sort();
+
+        const availDivs = [...new Set(
+            FILTER_TREE
+                .filter(r =>
+                    zonas.some(z => z === r.zona || z === 'NACIONAL') &&
+                    (selSubzonas.length === 0 || selSubzonas.includes(r.subzona))
+                )
+                .flatMap(r => r.divs)
+                .filter(d => activeDivs.has(d))
+        )].sort();
+
+        return { subs: availSubs, divs: availDivs };
+    }
+
     function initFilters(years) {
         buildDropdownOpts('optsANIO',  Array.from(years).sort((a,b)=>b-a).map(String), 'ANIO');
         buildDropdownOpts('optsMES',   MES_NOMBRES, 'MES');
         buildDropdownOpts('optsZONA',  ZONAS_OPTS,  'ZONA');
-        buildDropdownOpts('optsSUBZONA', getSubzonaOpts(), 'SUBZONA');
-        buildDropdownOpts('optsDIVISION', getDivOpts(), 'DIVISION');
+        const { subs, divs } = getAvailableSubzonas();
+        buildDropdownOpts('optsSUBZONA',  subs, 'SUBZONA');
+        buildDropdownOpts('optsDIVISION', divs, 'DIVISION');
 
         // Attach toggle on each multiselect by ID
         [
@@ -747,8 +793,8 @@ window.addEventListener('load', () => {
         ).map(cb => cb.value);
         const ms = document.getElementById('ms' + field);
         if (ms) ms.textContent = activeFilters[field].length > 0 ? activeFilters[field].join(', ') : 'Todos...';
-        // Cascade: when ZONA changes → rebuild SUBZONA + DIVISION
-        if (field === 'ZONA' || field === 'SUBZONA') rebuildCascade();
+        // Cascade: when ZONA or ANIO changes → rebuild SUBZONA + DIVISION
+        if (field === 'ZONA' || field === 'SUBZONA' || field === 'ANIO') rebuildCascade();
         updateCharts();
     };
 
@@ -962,7 +1008,7 @@ window.addEventListener('load', () => {
             ? activeFilters.ANIO.map(Number).filter(y => !isNaN(y)).sort((a,b) => a - b)
             : allYears;
 
-        const zona     = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+        const zona     = resolveZona();
         const selMesIdx = activeFilters.MES.length > 0
             ? activeFilters.MES.map(m => MES_LABELS.indexOf(m)).filter(i => i >= 0)
             : MES_LABELS.map((_, i) => i);
@@ -1086,8 +1132,8 @@ window.addEventListener('load', () => {
         const selYears = activeFilters.ANIO.map(Number);
         const anio     = selYears.length > 0 ? Math.max(...selYears) : (allYears[0] || new Date().getFullYear());
 
-        // Resolve zona: first selected or default NACIONAL
-        const zona = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+        // Resolve zona (LOCAL+FORANEA → NACIONAL)
+        const zona = resolveZona();
 
         // Resolve mes: if exactly one MES selected use it as mesFijo, else null
         const mesFijo = activeFilters.MES.length === 1
@@ -1250,7 +1296,7 @@ window.addEventListener('load', () => {
 
     // ─── Gráfica semanal 5.3A ────────────────────────────────────────────────
     function _doUpdateWeekly(rawData) {
-        const zona    = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+        const zona    = resolveZona();
         const selYrs  = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
         const allYrs  = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
         const anio    = selYrs.length > 0 ? Math.max(...selYrs) : (allYrs[0] || new Date().getFullYear());
@@ -1283,13 +1329,29 @@ window.addEventListener('load', () => {
         // ── Find ZONA column name ────────────────────────────────────────────
         const zonaKey = Object.keys(firstRow).find(k => k.toUpperCase() === zona.toUpperCase()) || zona;
 
+        // ── SUBZONA / DIVISION column resolution for 5.3A ───────────────────
+        // If DIVISION selected → use that column; if SUBZONA → use subzona col
+        // Otherwise use zona column
+        const selDivs  = activeFilters.DIVISION;
+        const selSubs  = activeFilters.SUBZONA;
+        let weekColKey = zonaKey; // default: zona column
+        if (selDivs.length > 0) {
+            // Use first selected division column
+            const divKey = Object.keys(firstRow).find(k => k.toUpperCase() === selDivs[0].toUpperCase());
+            if (divKey) weekColKey = divKey;
+        } else if (selSubs.length > 0) {
+            // Use first selected subzona column
+            const subKey = Object.keys(firstRow).find(k => k.toUpperCase() === selSubs[0].toUpperCase());
+            if (subKey) weekColKey = subKey;
+        }
+
         // ── Build weekly maps ────────────────────────────────────────────────
         const getWeeklyMap = (year) => {
             const map = {};
             rawData.filter(d => parseInt(d.ANIO) === year).forEach(d => {
                 const sem = parseInt(d[semanaKey]);
                 if (isNaN(sem) || sem <= 0) return;
-                const raw = (d[zonaKey] ?? 0).toString().replace(/[%,$ ]/g,'');
+                const raw = (d[weekColKey] ?? 0).toString().replace(/[%,$ ]/g,'');
                 map[sem]  = parseFloat(raw) || 0;
             });
             return map;
@@ -1344,7 +1406,7 @@ window.addEventListener('load', () => {
         ];
 
         // ── Render via shared _renderChart with week labels ───────────────────
-        _renderChart(datasets, weekLabels);
+        _renderChart(datasets, weekLabels, { grace: '15%' });
     }
 
     // ─── Anotación de meta ────────────────────────────────────────────────────
@@ -1387,7 +1449,7 @@ window.addEventListener('load', () => {
     }
 
     // ─── Render de gráfica: update si existe, crear si no ────────────────────
-    function _renderChart(datasets, customLabels) {
+    function _renderChart(datasets, customLabels, extraYOpts) {
         const isPct = PCT_TABS.has(currentIdx);
         let yMax;
         if (isPct) {
