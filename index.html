@@ -1148,13 +1148,40 @@ window.addEventListener('load', () => {
         DOM.myChart.style.display = hasData ? 'block' : 'none';
         if (!hasData) { if (myChart) { myChart.destroy(); myChart = null; } return; }
 
-        const colKey   = effectiveIdx === 5 ? `${zona}_PREV` : zona;
+        // Resolve colKey: DIVISION > SUBZONA > ZONA (priority order)
+        // For 5.0F (idx 5), always use zona_PREV / zona_CORR regardless
+        let colKey;
+        if (effectiveIdx === 5) {
+            colKey = zona + '_PREV';
+        } else {
+            const selDivs = activeFilters.DIVISION;
+            const selSubs = activeFilters.SUBZONA;
+            if (selDivs.length > 0) {
+                // Use first selected division — find matching key in data (case-insensitive)
+                const sampleRow = rawData.find(d => parseInt(d.ANIO) === anio) || rawData[0] || {};
+                const divKey = Object.keys(sampleRow).find(k => k.toUpperCase() === selDivs[0].toUpperCase());
+                colKey = divKey || zona;
+            } else if (selSubs.length > 0) {
+                // Use first selected subzona
+                const sampleRow = rawData.find(d => parseInt(d.ANIO) === anio) || rawData[0] || {};
+                const subKey = Object.keys(sampleRow).find(k => k.toUpperCase() === selSubs[0].toUpperCase());
+                colKey = subKey || zona;
+            } else {
+                colKey = zona;
+            }
+        }
+
         const nowData  = getMonthlyValues(rawData, anio, colKey);
         const pastData = getMonthlyValues(rawData, anio - 1, colKey);
 
+        // Use display label for chart title (division/subzona name if selected)
+        const displayLabel = activeFilters.DIVISION.length > 0 ? activeFilters.DIVISION[0]
+                           : activeFilters.SUBZONA.length  > 0 ? activeFilters.SUBZONA[0]
+                           : zona;
+
         updateKPIs(nowData, pastData, anio, mesVal, mesFijo);
-        updateChartTitle(zona, anio, mesVal);
-        _renderChart(buildDatasets(rawData, anio, zona, mesVal, mesFijo, nowData, pastData));
+        updateChartTitle(displayLabel, anio, mesVal);
+        _renderChart(buildDatasets(rawData, anio, displayLabel, mesVal, mesFijo, nowData, pastData));
     }
 
     // ─── KPIs ─────────────────────────────────────────────────────────────────
