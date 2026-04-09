@@ -1271,7 +1271,7 @@ window.addEventListener('load', () => {
             datasets.push({
                 type: 'bar', label: `${zona} (${anio})`, data: nowData,
                 backgroundColor: nowData.map((_,i) => color('#C10230','rgba(193,2,48,0.2)',i)),
-                datalabels: { anchor:'end', align:'top', color:'#000',
+                datalabels: { anchor:'end', align:'start', color:'#fff',
                     font:{weight:'bold'}, formatter: fmtFn,
                     display: ctx => showLbl(ctx, nowData) }
             });
@@ -1392,7 +1392,7 @@ window.addEventListener('load', () => {
                 type: 'bar', label: zona + ' (' + anio + ')', data: nowVals,
                 backgroundColor: '#C10230',
                 datalabels: {
-                    anchor: 'end', align: 'top', color: '#000',
+                    anchor: 'end', align: 'start', color: '#fff',
                     font: { weight: 'bold' }, formatter: fmtFn,
                     display: function(ctx) { return nowVals[ctx.dataIndex] !== 0; }
                 }
@@ -1413,7 +1413,7 @@ window.addEventListener('load', () => {
     function buildGoalAnnotation(isPct, yMax) {
         const goal = TAB_GOALS[currentIdx];
         if (goal == null) return {};
-        const goalVal = (isPct && yMax != null && yMax <= 1.2) ? goal / 100 : goal;
+        const goalVal = (isPct && yMax === 1) ? goal / 100 : goal;
         return { annotations: { metaLine: {
             type: 'line', yMin: goalVal, yMax: goalVal,
             borderColor: '#0070C0', borderWidth: 2,
@@ -1453,23 +1453,11 @@ window.addEventListener('load', () => {
         const isPct = PCT_TABS.has(currentIdx);
         let yMax;
         if (isPct) {
-            const allVals   = datasets.flatMap(ds => ds.data || []).filter(v => v > 0);
-            const dataMax   = allVals.length > 0 ? Math.max(...allVals) : 0;
-            const isDecimal = dataMax <= 1.1; // values are 0-1 (decimals)
-
-            if (isDecimal) {
-                // Add enough room so labels above bars never clip
-                // e.g. dataMax=0.99 → yMax = min(1.15, 0.99+0.15) = 1.14
-                yMax = Math.min(1.15, dataMax + 0.15);
-            } else {
-                // Integer percentages (0-100)
-                yMax = Math.min(115, dataMax + 15);
-            }
+            const all = datasets.flatMap(ds => ds.data || []);
+            yMax = all.some(v => v > 1.1) ? 100 : 1;
         }
 
-        // Tabs that always need label headroom (6=5.0G, 13=5.3A)
-        const needsGrace = [6, 13].includes(currentIdx);
-        const yExtra     = needsGrace ? { grace: '12%' } : {};
+        const yExtra = {};
 
         const opts = {
             responsive: true, maintainAspectRatio: false,
