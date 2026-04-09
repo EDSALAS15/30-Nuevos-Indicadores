@@ -881,7 +881,7 @@ window.addEventListener('load', () => {
     function normalizeKey(k) {
         let key = k.toString().trim().toUpperCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return (key.includes("ANO") || key === "A") ? "ANIO" : key;
+        return (key.includes("ANO") && key.length > 1) ? "ANIO" : key;
     }
 
     function parseMes(val) {
