@@ -441,12 +441,17 @@
                             <div class="dropdown-content" id="optsMES"></div>
                         </div>
                     </div>
-                    <!-- Fila 2: ZONA · DIVISIÓN · Limpiar -->
+                    <!-- Fila 2: ZONA · SUBZONAS · DIVISIÓN · Limpiar -->
                     <div class="filters-row">
                         <div class="f-item">
                             <label>ZONA</label>
                             <div class="multiselect" id="msZONA">Todos...</div>
                             <div class="dropdown-content" id="optsZONA"></div>
+                        </div>
+                        <div class="f-item">
+                            <label>SUBZONAS</label>
+                            <div class="multiselect" id="msSUBZONA">Todos...</div>
+                            <div class="dropdown-content" id="optsSUBZONA"></div>
                         </div>
                         <div class="f-item">
                             <label>DIVISIÓN</label>
@@ -539,11 +544,11 @@ window.addEventListener('load', () => {
     Chart.register(ChartDataLabels);
 
     // ─── Constantes ──────────────────────────────────────────────────────────
-    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G"]; // idx 0-6; idx 7 = tabla 5.0I
+    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G","","","","","","","5.3A"]; // idx 0-6; 7=tabla; 13=5.3A
     // idx 8-13: nuevas pestañas (sin datos aún — pendiente de Excel)
-    const NEW_TABS   = [8, 9, 11, 12, 13]; // índices sin datos aún (10=5.2A excluido: replica 5.0G)
+    const NEW_TABS   = [8, 9, 11]; // 10=5.2A, 12=5.2H replican 5.0G; 13=5.3A activa (datos por semana)
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-    const PCT_TABS   = new Set([0, 2, 5, 6, 10]); // 10=5.2A mirrors 5.0G
+    const PCT_TABS   = new Set([0, 2, 5, 6, 10, 12, 13]); // 13=5.3A cumplimiento semanal %
 
     const TAB_NAMES = [
         "Maximización de Utilización",           // 0 — 5.0A
@@ -577,8 +582,8 @@ window.addEventListener('load', () => {
         null, // 9 — 5.1E (pendiente)
         97,   // 10 — 5.2A (misma meta que 5.0G)
         null, // 11 — 5.2E (pendiente)
-        null, // 12 — 5.2H (pendiente)
-        null, // 13 — 5.3A (pendiente)
+        97,   // 12 — 5.2H (replica 5.0G)
+        90,   // 13 — 5.3A Cumplimiento Programación Semanal
     ];
 
     // ─── Estado ──────────────────────────────────────────────────────────────
@@ -588,11 +593,52 @@ window.addEventListener('load', () => {
     let debounceTimer = null;
 
     // ── Estado de filtros multiselect ─────────────────────────
-    let activeFilters = { ANIO: [], MES: [], ZONA: [], DIVISION: [] };
+    let activeFilters = { ANIO: [], MES: [], ZONA: [], SUBZONA: [], DIVISION: [] };
 
     const MES_NOMBRES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
     const ZONAS_OPTS  = ["NACIONAL","LOCAL","FORANEA"];
-    const DIV_OPTS    = ["A","B","C","D","E","G","H","J","JUAREZ","NUEVO LAREDO","SAN LUIS POTOSI","REYNOSA","VICTORIA"];
+
+    // Estructura jerárquica: ZONA → SUBZONA → DIVISIONES
+    // Fuente: Estructura_de_filtros.xlsx
+    const FILTER_TREE = [
+        { zona:'LOCAL',   subzona:'CENTRO',          divs:['A','E'] },
+        { zona:'LOCAL',   subzona:'METROS',           divs:['PREMETRO','SENDERO','TRASNMETRO'] },
+        { zona:'LOCAL',   subzona:'NORTE',            divs:['B','G'] },
+        { zona:'LOCAL',   subzona:'ORIENTE',          divs:['F','H'] },
+        { zona:'LOCAL',   subzona:'PONIENTE',         divs:['C','D','J'] },
+        { zona:'FORANEA', subzona:'JUAREZ',           divs:['JUAREZ','JUAREZ A','JUAREZ B'] },
+        { zona:'FORANEA', subzona:'NUEVO LAREDO',     divs:['NUEVO LAREDO'] },
+        { zona:'FORANEA', subzona:'REYNOSA',          divs:['REYNOSA'] },
+        { zona:'FORANEA', subzona:'SAN LUIS POTOSI',  divs:['SAN LUIS POTOSI'] },
+        { zona:'FORANEA', subzona:'VICTORIA',         divs:['VICTORIA'] },
+    ];
+
+    // All unique division options (flat, for when no zona/subzona filter active)
+    const DIV_OPTS = [...new Set(FILTER_TREE.flatMap(r => r.divs))];
+
+    // Get subzonas filtered by selected zonas
+    function getSubzonaOpts() {
+        const selZonas = activeFilters.ZONA;
+        return [...new Set(
+            FILTER_TREE
+                .filter(r => selZonas.length === 0 || selZonas.includes(r.zona))
+                .map(r => r.subzona)
+        )];
+    }
+
+    // Get divisiones filtered by selected zonas + subzonas
+    function getDivOpts() {
+        const selZonas    = activeFilters.ZONA;
+        const selSubzonas = activeFilters.SUBZONA;
+        return [...new Set(
+            FILTER_TREE
+                .filter(r =>
+                    (selZonas.length    === 0 || selZonas.includes(r.zona)) &&
+                    (selSubzonas.length === 0 || selSubzonas.includes(r.subzona))
+                )
+                .flatMap(r => r.divs)
+        )];
+    }
 
     // ─── Cache de referencias DOM ────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -626,54 +672,96 @@ window.addEventListener('load', () => {
         ).join('');
     }
 
-    function initFilters(years) {
-        buildDropdown('optsANIO',     Array.from(years).sort((a,b)=>b-a), 'ANIO');
-        buildDropdown('optsMES',      MES_NOMBRES, 'MES');
-        buildDropdown('optsZONA',     ZONAS_OPTS,  'ZONA');
-        buildDropdown('optsDIVISION', DIV_OPTS,    'DIVISION');
+    function buildDropdownOpts(containerId, options, field) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = options.map(o =>
+            '<label style="display:flex;align-items:center;gap:6px;padding:4px 5px;' +
+            'cursor:pointer;font-size:10px;color:#333;white-space:nowrap;">' +
+            '<input type="checkbox" value="' + o + '" onchange="_onCbChange('' + field + '')"> ' + o +
+            '</label>'
+        ).join('');
+    }
 
-        // Attach toggle to each multiselect button
-        document.querySelectorAll('.multiselect').forEach(ms => {
-            // Remove old listener by cloning
-            const fresh = ms.cloneNode(true);
-            ms.parentNode.replaceChild(fresh, ms);
-            fresh.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const dd = this.nextElementSibling;
-                const wasOpen = dd.classList.contains('open');
-                document.querySelectorAll('.dropdown-content')
-                    .forEach(d => d.classList.remove('open'));
-                if (!wasOpen) dd.classList.add('open');
+    function rebuildCascade() {
+        // Rebuild SUBZONA and DIVISION options based on current ZONA selection
+        const subOpts = getSubzonaOpts();
+        const divOpts = getDivOpts();
+
+        // Remove selected values that no longer exist in filtered list
+        activeFilters.SUBZONA = activeFilters.SUBZONA.filter(v => subOpts.includes(v));
+        activeFilters.DIVISION = activeFilters.DIVISION.filter(v => divOpts.includes(v));
+
+        buildDropdownOpts('optsSUBZONA', subOpts, 'SUBZONA');
+        buildDropdownOpts('optsDIVISION', divOpts, 'DIVISION');
+
+        // Restore checked state
+        ['SUBZONA','DIVISION'].forEach(f => {
+            document.querySelectorAll('#opts' + f + ' input').forEach(cb => {
+                cb.checked = activeFilters[f].includes(cb.value);
             });
+            const ms = document.getElementById('ms' + f);
+            if (ms) ms.textContent = activeFilters[f].length > 0 ? activeFilters[f].join(', ') : 'Todos...';
         });
     }
 
-    document.addEventListener('click', e => {
-        // Close dropdowns only when clicking outside any .f-item
+    function initFilters(years) {
+        buildDropdownOpts('optsANIO',  Array.from(years).sort((a,b)=>b-a).map(String), 'ANIO');
+        buildDropdownOpts('optsMES',   MES_NOMBRES, 'MES');
+        buildDropdownOpts('optsZONA',  ZONAS_OPTS,  'ZONA');
+        buildDropdownOpts('optsSUBZONA', getSubzonaOpts(), 'SUBZONA');
+        buildDropdownOpts('optsDIVISION', getDivOpts(), 'DIVISION');
+
+        // Attach toggle on each multiselect by ID
+        [
+            ['msANIO',     'optsANIO'],
+            ['msMES',      'optsMES'],
+            ['msZONA',     'optsZONA'],
+            ['msSUBZONA',  'optsSUBZONA'],
+            ['msDIVISION', 'optsDIVISION'],
+        ].forEach(([btnId, ddId]) => {
+            const btn = document.getElementById(btnId);
+            const dd  = document.getElementById(ddId);
+            if (!btn || !dd) return;
+            const fresh = btn.cloneNode(true);
+            btn.parentNode.replaceChild(fresh, btn);
+            fresh.onclick = function(e) {
+                e.stopPropagation();
+                const isOpen = dd.classList.contains('open');
+                document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('open'));
+                if (!isOpen) dd.classList.add('open');
+            };
+        });
+    }
+
+    document.addEventListener('click', function(e) {
         if (!e.target.closest('.f-item')) {
-            document.querySelectorAll('.dropdown-content')
-                .forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('open'));
         }
     });
 
-    window.handleFilterChange = function(field) {
-        const checked = Array.from(
-            document.querySelectorAll('#opts' + field + ' input:checked')
+    window._onCbChange = function(field) {
+        activeFilters[field] = Array.from(
+            document.querySelectorAll('#opts' + field + ' input[type="checkbox"]:checked')
         ).map(cb => cb.value);
-        activeFilters[field] = checked;
-        const msEl = document.getElementById('ms' + field);
-        if (msEl) msEl.textContent = checked.length > 0 ? checked.join(', ') : 'Todos...';
+        const ms = document.getElementById('ms' + field);
+        if (ms) ms.textContent = activeFilters[field].length > 0 ? activeFilters[field].join(', ') : 'Todos...';
+        // Cascade: when ZONA changes → rebuild SUBZONA + DIVISION
+        if (field === 'ZONA' || field === 'SUBZONA') rebuildCascade();
         updateCharts();
     };
 
+    window.handleFilterChange = window._onCbChange; // backward compat
+
     window.resetFilters = function() {
-        ['ANIO','MES','ZONA','DIVISION'].forEach(f => {
+        ['ANIO','MES','ZONA','SUBZONA','DIVISION'].forEach(f => {
             activeFilters[f] = [];
             const ms = document.getElementById('ms' + f);
             if (ms) ms.textContent = 'Todos...';
-            document.querySelectorAll('#opts' + f + ' input')
-                .forEach(cb => cb.checked = false);
+            document.querySelectorAll('#opts' + f + ' input').forEach(cb => cb.checked = false);
         });
+        rebuildCascade();
+        document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('open'));
         updateCharts();
     };
 
@@ -694,9 +782,9 @@ window.addEventListener('load', () => {
         SHEETS.forEach((sheetName, idx) => {
             const sheet = wb.Sheets[sheetName];
             if (!sheet) return;
-            megaStore[idx] = sheetName === "5.0F"
-                ? parseSheet5F(sheet, years)
-                : parseSheetGeneric(sheet, years);
+            if (sheetName === "5.0F")  megaStore[idx] = parseSheet5F(sheet, years);
+            else if (sheetName === "5.3A") megaStore[idx] = parseSheet5_3A(sheet, years);
+            else megaStore[idx] = parseSheetGeneric(sheet, years);
         });
         if (years.size === 0) throw new Error("No se encontraron datos de años.");
         populateYearSelector(years);
@@ -744,6 +832,8 @@ window.addEventListener('load', () => {
     autoLoadExcel();
 
     // ─── Parseo de hojas ─────────────────────────────────────────────────────
+    // Hoja 5.3A: columnas ANIO | SEMANA | NACIONAL | LOCAL | FORANEA
+    // SEMANA es un número (1-52). Se parsea igual que MES pero con campo SEMANA.
     function parseSheetGeneric(sheet, years) {
         return XLSX.utils.sheet_to_json(sheet, { defval: 0 }).map(row => {
             const clean = {};
@@ -769,6 +859,21 @@ window.addEventListener('load', () => {
             });
         }
         return data;
+    }
+
+    function parseSheet5_3A(sheet, years) {
+        const raw = XLSX.utils.sheet_to_json(sheet, { defval: 0 });
+        return raw.map(row => {
+            const clean = {};
+            for (const k in row) { clean[normalizeKey(k)] = row[k]; }
+            // Normalize year key
+            if (clean.ANIO !== undefined) {
+                const a = parseInt(clean.ANIO);
+                if (!isNaN(a) && a > 1900 && a < 2200) years.add(a);
+            }
+            // Keep SEMANA as-is (numeric)
+            return clean;
+        });
     }
 
     // ─── Utilidades ──────────────────────────────────────────────────────────
@@ -966,9 +1071,12 @@ window.addEventListener('load', () => {
     };
 
     function _doUpdate() {
-        // 5.2A (idx 10) mirrors 5.0G (idx 6) — same data, same chart
-        const effectiveIdx = currentIdx === 10 ? 6 : currentIdx;
+        // 5.2A (idx 10) y 5.2H (idx 12) replican 5.0G (idx 6)
+        const effectiveIdx = (currentIdx === 10 || currentIdx === 12) ? 6 : currentIdx;
         const rawData = megaStore[effectiveIdx] || [];
+
+        // 5.3A (idx 13): gráfica semanal — fluye a _doUpdateWeekly
+        if (currentIdx === 13) { _doUpdateWeekly(rawData); return; }
 
         // Resolve active year: first selected, else max year in data
         const allYears = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
@@ -1135,6 +1243,101 @@ window.addEventListener('load', () => {
             datalabels: { display: false }
         });
         return datasets;
+    }
+
+    // ─── Gráfica semanal 5.3A ────────────────────────────────────────────────
+    function _doUpdateWeekly(rawData) {
+        const zona   = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+        const selYrs = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
+        const allYrs = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
+        const anio   = selYrs.length > 0 ? Math.max(...selYrs) : (allYrs[0] || new Date().getFullYear());
+
+        const noData = DOM.noDataMsg;
+        const canvas = DOM.myChart;
+        const hasData = rawData.some(d => parseInt(d.ANIO) === anio || parseInt(d.ANIO) === anio - 1);
+        noData.classList.toggle('visible', !hasData);
+        canvas.style.display = hasData ? 'block' : 'none';
+        if (!hasData) { if (myChart) { myChart.destroy(); myChart = null; } return; }
+
+        // Build weekly values
+        const getWeeklyVals = (year) => {
+            const result = {};
+            rawData.filter(d => parseInt(d.ANIO) === year).forEach(d => {
+                const sem = parseInt(d.SEMANA);
+                if (!isNaN(sem)) {
+                    const v = parseFloat((d[zona] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0;
+                    result[sem] = v;
+                }
+            });
+            return result;
+        };
+
+        const nowMap  = getWeeklyVals(anio);
+        const pastMap = getWeeklyVals(anio - 1);
+        const semKeys = [...new Set([...Object.keys(nowMap), ...Object.keys(pastMap)])].map(Number).sort((a,b)=>a-b);
+        const labels  = semKeys.map(s => 'S' + s);
+
+        const fmtFn = v => formatValue(v, currentIdx);
+        const nowVals  = semKeys.map(s => nowMap[s]  || 0);
+        const pastVals = semKeys.map(s => pastMap[s] || 0);
+
+        // Last loaded week
+        let lastSem = -1;
+        for (let i = nowVals.length-1; i >= 0; i--) { if (nowVals[i] !== 0) { lastSem = i; break; } }
+        const mesIdx = lastSem >= 0 ? lastSem : nowVals.length - 1;
+
+        updateKPIs(nowVals, pastVals, anio, 'TODOS', null);
+        DOM.ctName.textContent = TAB_NAMES[currentIdx] || '';
+        DOM.ctZone.textContent = zona;
+        DOM.ctYear.textContent = `${anio} · Por Semana`;
+
+        const datasets = [{
+            type: 'bar', label: `${zona} (${anio})`, data: nowVals,
+            backgroundColor: '#C10230',
+            datalabels: { anchor:'end', align:'top', color:'#000',
+                font:{weight:'bold'}, formatter: fmtFn,
+                display: ctx => nowVals[ctx.dataIndex] !== 0 }
+        },{
+            type: 'line', label: `Prev. Año Anterior (${anio-1})`, data: pastVals,
+            backgroundColor: 'rgba(217,217,217,0.6)', borderColor: 'transparent',
+            fill: true, pointRadius: 0, pointHoverRadius: 0, tension: 0,
+            datalabels: { display: false }
+        }];
+
+        const goal    = TAB_GOALS[currentIdx];
+        const isPct   = PCT_TABS.has(currentIdx);
+        const allVals = [...nowVals, ...pastVals];
+        const yMax_   = isPct ? (allVals.some(v => v > 1.1) ? 100 : 1) : undefined;
+        const goalAnnot = goal != null ? { annotations: { metaLine: {
+            type: 'line', yMin: goal, yMax: goal,
+            borderColor: '#0070C0', borderWidth: 2,
+            label: { display: true, content: `Meta: ${goal}%`, position: 'end',
+                backgroundColor: '#0070C0', color: '#fff',
+                font: { size:10, weight:'bold' }, padding:{x:6,y:3}, borderRadius:4 }
+        }}} : {};
+
+        if (myChart) { myChart.destroy(); myChart = null; }
+        myChart = new Chart(DOM.myChart, {
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { mode: 'index', intersect: false, callbacks: {
+                        label: ctx => ctx.raw === 0 ? null : ` ${ctx.dataset.label}: ${formatValue(ctx.raw, currentIdx)}`
+                    }},
+                    annotation: goalAnnot
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false },
+                         ticks: { maxRotation: 45, font: { size: 9 } } },
+                    y: { stacked: true, beginAtZero: true,
+                         ...(yMax_ !== undefined ? { max: yMax_ } : {}),
+                         grid: { display: false },
+                         ticks: { callback: v => formatValue(v, currentIdx) } }
+                }
+            }
+        });
     }
 
     // ─── Anotación de meta ────────────────────────────────────────────────────
