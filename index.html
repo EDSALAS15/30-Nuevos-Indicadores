@@ -677,20 +677,28 @@ window.addEventListener('load', () => {
         const el = $(id);
         if (!el) return;
         el.innerHTML = options.map(o =>
-            `<label><input type="checkbox" value="${o}" onchange="handleFilterChange('${filterKey}')"> ${o}</label>`
+            '<label><input type="checkbox" value="' + o + '" data-field="' + filterKey + '"> ' + o + '</label>'
         ).join('');
+        el.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+            cb.addEventListener('change', function() { _onCbChange(filterKey); });
+        });
     }
 
     function buildDropdownOpts(containerId, options, field) {
         const el = document.getElementById(containerId);
         if (!el) return;
-        const fld = field;
         el.innerHTML = options.map(function(o) {
             return '<label style="display:flex;align-items:center;gap:6px;padding:4px 5px;' +
                 'cursor:pointer;font-size:10px;color:#333;white-space:nowrap;">' +
-                '<input type="checkbox" value="' + o + '" onchange="_onCbChange(\'' + fld + '\')"> ' + o +
+                '<input type="checkbox" data-field="' + field + '" value="' + o + '"> ' + o +
                 '</label>';
         }).join('');
+        // Attach listeners directly (no inline onchange — avoids scope issues)
+        el.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                _onCbChange(field);
+            });
+        });
     }
 
     function rebuildCascade() {
