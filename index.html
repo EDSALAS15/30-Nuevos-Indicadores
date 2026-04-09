@@ -928,7 +928,9 @@ window.addEventListener('load', () => {
         DOM.tabBtns.forEach((btn, i) => btn.classList.toggle('active', i === idx));
 
         const isTabla   = idx === 7;
-        const isNewTab  = NEW_TABS.includes(idx);   // pestañas sin datos aún
+        // A tab is "pending" if it's in NEW_TABS OR if it has no data loaded yet
+        const hasSheetData = idx < SHEETS.length && SHEETS[idx] && (megaStore[idx] || []).length > 0;
+        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 10 && idx !== 12);
         const chartArea  = $('chartArea');
         const tablaView  = $('tablaView');
         const chartTitle = $('chartTitle');
@@ -941,7 +943,7 @@ window.addEventListener('load', () => {
         if (btnDL)      btnDL.classList.toggle('visible', isTabla);
         if (pendingMsg) pendingMsg.style.display  = isNewTab ? 'flex' : 'none';
 
-        if (isTabla)   buildTabla();
+        if (isTabla)        buildTabla();
         else if (!isNewTab) updateCharts();
     };
 
@@ -1253,12 +1255,27 @@ window.addEventListener('load', () => {
         const allYrs = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
         const anio   = selYrs.length > 0 ? Math.max(...selYrs) : (allYrs[0] || new Date().getFullYear());
 
-        const noData = DOM.noDataMsg;
-        const canvas = DOM.myChart;
-        const hasData = rawData.some(d => parseInt(d.ANIO) === anio || parseInt(d.ANIO) === anio - 1);
-        noData.classList.toggle('visible', !hasData);
-        canvas.style.display = hasData ? 'block' : 'none';
-        if (!hasData) { if (myChart) { myChart.destroy(); myChart = null; } return; }
+        const noData    = DOM.noDataMsg;
+        const canvas    = DOM.myChart;
+        const pendingEl = $('pendingMsg');
+        const chartEl   = $('chartArea');
+        const titleEl   = $('chartTitle');
+        const hasData   = rawData.some(d => parseInt(d.ANIO) === anio || parseInt(d.ANIO) === anio - 1);
+
+        if (!hasData) {
+            // No data in Excel yet — show pending message
+            if (pendingEl) pendingEl.style.display = 'flex';
+            if (chartEl)   chartEl.style.display   = 'none';
+            if (titleEl)   titleEl.style.display   = 'none';
+            if (myChart)   { myChart.destroy(); myChart = null; }
+            return;
+        }
+        // Has data — show chart
+        if (pendingEl) pendingEl.style.display = 'none';
+        if (chartEl)   chartEl.style.display   = 'block';
+        if (titleEl)   titleEl.style.display   = 'flex';
+        noData.classList.remove('visible');
+        canvas.style.display = 'block';
 
         // Build weekly values
         const getWeeklyVals = (year) => {
