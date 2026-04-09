@@ -1430,12 +1430,17 @@ window.addEventListener('load', () => {
         };
 
         const chartLabels = customLabels || MES_LABELS;
-        if (myChart) {
+        // Always destroy and recreate when label set changes (e.g. monthly ↔ weekly)
+        const prevLabels  = myChart ? myChart.data.labels : null;
+        const labelsChanged = !prevLabels || prevLabels.length !== chartLabels.length ||
+                              prevLabels[0] !== chartLabels[0];
+        if (myChart && !labelsChanged) {
             myChart.data.labels   = chartLabels;
             myChart.data.datasets = datasets;
             myChart.options = { ...myChart.options, ...opts };
             myChart.update('none');
         } else {
+            if (myChart) { myChart.destroy(); myChart = null; }
             myChart = new Chart(DOM.myChart, { data: { labels: chartLabels, datasets }, options: opts });
         }
     }
