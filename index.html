@@ -675,12 +675,13 @@ window.addEventListener('load', () => {
     function buildDropdownOpts(containerId, options, field) {
         const el = document.getElementById(containerId);
         if (!el) return;
-        el.innerHTML = options.map(o =>
-            '<label style="display:flex;align-items:center;gap:6px;padding:4px 5px;' +
-            'cursor:pointer;font-size:10px;color:#333;white-space:nowrap;">' +
-            '<input type="checkbox" value="' + o + '" onchange="_onCbChange('' + field + '')"> ' + o +
-            '</label>'
-        ).join('');
+        const fld = field;
+        el.innerHTML = options.map(function(o) {
+            return '<label style="display:flex;align-items:center;gap:6px;padding:4px 5px;' +
+                'cursor:pointer;font-size:10px;color:#333;white-space:nowrap;">' +
+                '<input type="checkbox" value="' + o + '" onchange="_onCbChange(\'' + fld + '\')"> ' + o +
+                '</label>';
+        }).join('');
     }
 
     function rebuildCascade() {
