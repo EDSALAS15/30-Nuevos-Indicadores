@@ -1250,126 +1250,101 @@ window.addEventListener('load', () => {
 
     // ─── Gráfica semanal 5.3A ────────────────────────────────────────────────
     function _doUpdateWeekly(rawData) {
-        const zona   = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
-        const selYrs = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
-        const allYrs = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
-        const anio   = selYrs.length > 0 ? Math.max(...selYrs) : (allYrs[0] || new Date().getFullYear());
+        const zona    = activeFilters.ZONA.length > 0 ? activeFilters.ZONA[0] : 'NACIONAL';
+        const selYrs  = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
+        const allYrs  = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
+        const anio    = selYrs.length > 0 ? Math.max(...selYrs) : (allYrs[0] || new Date().getFullYear());
 
-        const noData    = DOM.noDataMsg;
-        const canvas    = DOM.myChart;
         const pendingEl = $('pendingMsg');
         const chartEl   = $('chartArea');
         const titleEl   = $('chartTitle');
-        const hasData   = rawData.some(d => parseInt(d.ANIO) === anio || parseInt(d.ANIO) === anio - 1);
+        const hasData   = rawData.some(d => {
+            const a = parseInt(d.ANIO);
+            return a === anio || a === anio - 1;
+        });
+
+        // Show/hide elements
+        if (pendingEl) pendingEl.style.display = hasData ? 'none' : 'flex';
+        if (chartEl)   chartEl.style.display   = hasData ? 'block' : 'none';
+        if (titleEl)   titleEl.style.display   = hasData ? 'flex' : 'none';
 
         if (!hasData) {
-            // No data in Excel yet — show pending message
+            if (myChart) { myChart.destroy(); myChart = null; }
+            return;
+        }
+
+        // ── Find SEMANA column name (case-insensitive) ───────────────────────
+        const firstRow   = rawData.find(d => parseInt(d.ANIO) === anio) || {};
+        const semanaKey  = Object.keys(firstRow).find(k =>
+            k.toUpperCase().replace(/[^A-Z]/g,'').includes('SEMANA') ||
+            k.toUpperCase() === 'SEM' || k.toUpperCase() === 'WEEK'
+        ) || 'SEMANA';
+
+        // ── Find ZONA column name ────────────────────────────────────────────
+        const zonaKey = Object.keys(firstRow).find(k => k.toUpperCase() === zona.toUpperCase()) || zona;
+
+        // ── Build weekly maps ────────────────────────────────────────────────
+        const getWeeklyMap = (year) => {
+            const map = {};
+            rawData.filter(d => parseInt(d.ANIO) === year).forEach(d => {
+                const sem = parseInt(d[semanaKey]);
+                if (isNaN(sem) || sem <= 0) return;
+                const raw = (d[zonaKey] ?? 0).toString().replace(/[%,$ ]/g,'');
+                map[sem]  = parseFloat(raw) || 0;
+            });
+            return map;
+        };
+
+        const nowMap  = getWeeklyMap(anio);
+        const pastMap = getWeeklyMap(anio - 1);
+
+        // Combine and sort week keys
+        const allSems = [...new Set([...Object.keys(nowMap), ...Object.keys(pastMap)])].map(Number).sort((a,b)=>a-b);
+        if (allSems.length === 0) {
             if (pendingEl) pendingEl.style.display = 'flex';
             if (chartEl)   chartEl.style.display   = 'none';
-            if (titleEl)   titleEl.style.display   = 'none';
             if (myChart)   { myChart.destroy(); myChart = null; }
             return;
         }
-        // Has data — show chart
-        if (pendingEl) pendingEl.style.display = 'none';
-        if (chartEl)   chartEl.style.display   = 'block';
-        if (titleEl)   titleEl.style.display   = 'flex';
-        noData.classList.remove('visible');
-        canvas.style.display = 'block';
 
-        // Build weekly values — try multiple possible column names for SEMANA
-        const getSemanaVal = (d) => {
-            for (const key of Object.keys(d)) {
-                if (key.toUpperCase().includes('SEMANA') || key.toUpperCase() === 'SEM' || key.toUpperCase() === 'WEEK') {
-                    const v = parseInt(d[key]);
-                    if (!isNaN(v)) return v;
-                }
-            }
-            return NaN;
-        };
-        const getZonaVal = (d, z) => {
-            // Try exact zona key, then case-insensitive match
-            if (d[z] !== undefined) return parseFloat((d[z] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0;
-            const key = Object.keys(d).find(k => k.toUpperCase() === z.toUpperCase());
-            return key ? (parseFloat((d[key] ?? '0').toString().replace(/[%,$\s]/g,'')) || 0) : 0;
-        };
-        const getWeeklyVals = (year) => {
-            const result = {};
-            rawData.filter(d => parseInt(d.ANIO) === year).forEach(d => {
-                const sem = getSemanaVal(d);
-                if (!isNaN(sem) && sem > 0) {
-                    result[sem] = getZonaVal(d, zona);
-                }
-            });
-            return result;
-        };
+        const weekLabels = allSems.map(s => 'S' + s);
+        const nowVals    = allSems.map(s => nowMap[s]  || 0);
+        const pastVals   = allSems.map(s => pastMap[s] || 0);
+        const fmtFn      = v => formatValue(v, currentIdx);
 
-        const nowMap  = getWeeklyVals(anio);
-        const pastMap = getWeeklyVals(anio - 1);
-        const semKeys = [...new Set([...Object.keys(nowMap), ...Object.keys(pastMap)])].map(Number).sort((a,b)=>a-b);
-        const labels  = semKeys.map(s => 'S' + s);
+        // ── KPIs adaptados a semanas ─────────────────────────────────────────
+        // updateKPIs expects month-indexed arrays; we adapt week data to it
+        // by limiting to 12 elements max and using week index as "month"
+        const nowSlice  = nowVals.slice(0, 12).concat(new Array(Math.max(0, 12-nowVals.length)).fill(0));
+        const pastSlice = pastVals.slice(0, 12).concat(new Array(Math.max(0, 12-pastVals.length)).fill(0));
+        updateKPIs(nowSlice, pastSlice, anio, 'TODOS', null);
 
-        const fmtFn = v => formatValue(v, currentIdx);
-        const nowVals  = semKeys.map(s => nowMap[s]  || 0);
-        const pastVals = semKeys.map(s => pastMap[s] || 0);
-
-        // Last loaded week
-        let lastSem = -1;
-        for (let i = nowVals.length-1; i >= 0; i--) { if (nowVals[i] !== 0) { lastSem = i; break; } }
-        const mesIdx = lastSem >= 0 ? lastSem : nowVals.length - 1;
-
-        updateKPIs(nowVals, pastVals, anio, 'TODOS', null);
+        // Chart title
         DOM.ctName.textContent = TAB_NAMES[currentIdx] || '';
         DOM.ctZone.textContent = zona;
-        DOM.ctYear.textContent = `${anio} · Por Semana`;
+        DOM.ctYear.textContent = anio + ' · Por Semana';
 
-        const datasets = [{
-            type: 'bar', label: `${zona} (${anio})`, data: nowVals,
-            backgroundColor: '#C10230',
-            datalabels: { anchor:'end', align:'top', color:'#000',
-                font:{weight:'bold'}, formatter: fmtFn,
-                display: ctx => nowVals[ctx.dataIndex] !== 0 }
-        },{
-            type: 'line', label: `Prev. Año Anterior (${anio-1})`, data: pastVals,
-            backgroundColor: 'rgba(217,217,217,0.6)', borderColor: 'transparent',
-            fill: true, pointRadius: 0, pointHoverRadius: 0, tension: 0,
-            datalabels: { display: false }
-        }];
-
-        const goal    = TAB_GOALS[currentIdx];
-        const isPct   = PCT_TABS.has(currentIdx);
-        const allVals = [...nowVals, ...pastVals];
-        const yMax_   = isPct ? (allVals.some(v => v > 1.1) ? 100 : 1) : undefined;
-        const goalAnnot = goal != null ? { annotations: { metaLine: {
-            type: 'line', yMin: goal, yMax: goal,
-            borderColor: '#0070C0', borderWidth: 2,
-            label: { display: true, content: `Meta: ${goal}%`, position: 'end',
-                backgroundColor: '#0070C0', color: '#fff',
-                font: { size:10, weight:'bold' }, padding:{x:6,y:3}, borderRadius:4 }
-        }}} : {};
-
-        if (myChart) { myChart.destroy(); myChart = null; }
-        myChart = new Chart(DOM.myChart, {
-            data: { labels, datasets },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: { mode: 'index', intersect: false, callbacks: {
-                        label: ctx => ctx.raw === 0 ? null : ` ${ctx.dataset.label}: ${formatValue(ctx.raw, currentIdx)}`
-                    }},
-                    annotation: goalAnnot
-                },
-                scales: {
-                    x: { stacked: true, grid: { display: false },
-                         ticks: { maxRotation: 45, font: { size: 9 } } },
-                    y: { stacked: true, beginAtZero: true,
-                         ...(yMax_ !== undefined ? { max: yMax_ } : {}),
-                         grid: { display: false },
-                         ticks: { callback: v => formatValue(v, currentIdx) } }
+        // ── Datasets ─────────────────────────────────────────────────────────
+        const datasets = [
+            {
+                type: 'bar', label: zona + ' (' + anio + ')', data: nowVals,
+                backgroundColor: '#C10230',
+                datalabels: {
+                    anchor: 'end', align: 'top', color: '#000',
+                    font: { weight: 'bold' }, formatter: fmtFn,
+                    display: function(ctx) { return nowVals[ctx.dataIndex] !== 0; }
                 }
+            },
+            {
+                type: 'line', label: 'Prev. Año Anterior (' + (anio-1) + ')', data: pastVals,
+                backgroundColor: 'rgba(217,217,217,0.6)', borderColor: 'transparent',
+                fill: true, pointRadius: 0, pointHoverRadius: 0, tension: 0,
+                datalabels: { display: false }
             }
-        });
+        ];
+
+        // ── Render via shared _renderChart with week labels ───────────────────
+        _renderChart(datasets, weekLabels);
     }
 
     // ─── Anotación de meta ────────────────────────────────────────────────────
@@ -1412,7 +1387,7 @@ window.addEventListener('load', () => {
     }
 
     // ─── Render de gráfica: update si existe, crear si no ────────────────────
-    function _renderChart(datasets) {
+    function _renderChart(datasets, customLabels) {
         const isPct = PCT_TABS.has(currentIdx);
         let yMax;
         if (isPct) {
@@ -1454,12 +1429,14 @@ window.addEventListener('load', () => {
             }
         };
 
+        const chartLabels = customLabels || MES_LABELS;
         if (myChart) {
+            myChart.data.labels   = chartLabels;
             myChart.data.datasets = datasets;
             myChart.options = { ...myChart.options, ...opts };
             myChart.update('none');
         } else {
-            myChart = new Chart(DOM.myChart, { data: { labels: MES_LABELS, datasets }, options: opts });
+            myChart = new Chart(DOM.myChart, { data: { labels: chartLabels, datasets }, options: opts });
         }
     }
 });
