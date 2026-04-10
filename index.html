@@ -211,7 +211,7 @@
 
         .chart-container { height: 490px; position: relative; margin-top: 4px; }
 
-        /* ── Tabla 5.0I ─────────────────────────── */
+        /* ── Tabla 5.0J ─────────────────────────── */
         #tablaView {
             display: none; margin-top: 8px;
             border-radius: 10px; overflow: hidden;
@@ -366,7 +366,8 @@
                 <button class="tab-btn" onclick="changeDash(4)">5.0E: Costo de Mantenimiento por Unidad</button>
                 <button class="tab-btn" onclick="changeDash(5)">5.0F: % Mantenimiento Preventivo vs Correctivo</button>
                 <button class="tab-btn" onclick="changeDash(6)">5.0G: Cumplimiento del Plan de Mantenimiento</button>
-                <button class="tab-btn" onclick="changeDash(7)">5.0I: Excel Descargable</button>
+                <button class="tab-btn" onclick="changeDash(7)">5.0I: Cumplimiento de Asistencia de Programación</button>
+                <button class="tab-btn" onclick="changeDash(8)">5.0J: Excel Descargable</button>
             </div>
         </div>
 
@@ -379,8 +380,8 @@
                 <span class="arrow">&#9654;</span>
             </div>
             <div class="nav-children" id="children-group-5-1">
-                <button class="tab-btn" onclick="changeDash(8)">5.1D: Clasificación Correcta de Fallas</button>
-                <button class="tab-btn" onclick="changeDash(9)">5.1E: Tasa de Conversión</button>
+                <button class="tab-btn" onclick="changeDash(9)">5.1D: Clasificación Correcta de Fallas</button>
+                <button class="tab-btn" onclick="changeDash(10)">5.1E: Tasa de Conversión</button>
             </div>
         </div>
 
@@ -391,9 +392,9 @@
                 <span class="arrow">&#9654;</span>
             </div>
             <div class="nav-children" id="children-group-5-2">
-                <button class="tab-btn" onclick="changeDash(10)">5.2A: Cumplimiento del Plan Mensual</button>
-                <button class="tab-btn" onclick="changeDash(11)">5.2E: Backlog Pendiente de Planear</button>
-                <button class="tab-btn" onclick="changeDash(12)">5.2H: Plan de Mantenimiento Preventivo</button>
+                <button class="tab-btn" onclick="changeDash(11)">5.2A: Cumplimiento del Plan Mensual</button>
+                <button class="tab-btn" onclick="changeDash(12)">5.2E: Backlog Pendiente de Planear</button>
+                <button class="tab-btn" onclick="changeDash(13)">5.2H: Plan de Mantenimiento Preventivo</button>
             </div>
         </div>
 
@@ -404,7 +405,7 @@
                 <span class="arrow">&#9654;</span>
             </div>
             <div class="nav-children" id="children-group-5-3">
-                <button class="tab-btn" onclick="changeDash(13)">5.3A: Cumplimiento Programación Semanal</button>
+                <button class="tab-btn" onclick="changeDash(14)">5.3A: Cumplimiento Programación Semanal</button>
             </div>
         </div>
 
@@ -544,27 +545,28 @@ window.addEventListener('load', () => {
     Chart.register(ChartDataLabels);
 
     // ─── Constantes ──────────────────────────────────────────────────────────
-    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G","","","","","","","5.3A"]; // idx 0-6; 7=tabla; 13=5.3A
+    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G","5.0I","","","","","","","5.3A"]; // idx 0-6; 7=5.0I; 8=tabla(5.0J); 14=5.3A
     // idx 8-13: nuevas pestañas (sin datos aún — pendiente de Excel)
-    const NEW_TABS   = [8, 9, 11]; // 10=5.2A, 12=5.2H replican 5.0G; 13=5.3A activa (datos por semana)
+    const NEW_TABS   = [9, 10, 12]; // 11=5.2A, 13=5.2H replican 5.0G; 14=5.3A activa
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-    const PCT_TABS   = new Set([0, 2, 5, 6, 10, 12, 13]); // 13=5.3A cumplimiento semanal %
+    const PCT_TABS   = new Set([0, 2, 5, 6, 7, 11, 13, 14]); // 7=5.0I Asistencia, 11=5.2A, 13=5.2H, 14=5.3A
 
     const TAB_NAMES = [
-        "Maximización de Utilización",           // 0 — 5.0A
-        "Costo de Mantenimiento",                // 1 — 5.0B
-        "Cumplimiento Estándares de Servicio",   // 2 — 5.0C
-        "Costo por Atributos",                   // 3 — 5.0D
-        "Costo de Mantenimiento por Unidad",     // 4 — 5.0E
-        "Preventivo vs Correctivo",              // 5 — 5.0F
-        "Cumplimiento Plan de Mantenimiento",    // 6 — 5.0G
-        "Excel Descargable",                     // 7 — 5.0I
-        "Clasificación Correcta de Fallas",      // 8 — 5.1D
-        "Tasa de Conversión",                    // 9 — 5.1E
-        "Cumplimiento del Plan Mensual",         // 10 — 5.2A
-        "Backlog Pendiente de Planear",          // 11 — 5.2E
-        "Plan de Mantenimiento Preventivo",      // 12 — 5.2H
-        "Cumplimiento Programación Semanal",     // 13 — 5.3A
+        "Maximización de Utilización",                    // 0 — 5.0A
+        "Costo de Mantenimiento",                         // 1 — 5.0B
+        "Cumplimiento Estándares de Servicio",            // 2 — 5.0C
+        "Costo por Atributos",                            // 3 — 5.0D
+        "Costo de Mantenimiento por Unidad",              // 4 — 5.0E
+        "Preventivo vs Correctivo",                       // 5 — 5.0F
+        "Cumplimiento Plan de Mantenimiento",             // 6 — 5.0G
+        "Cumplimiento de Asistencia de Programación",    // 7 — 5.0I
+        "Excel Descargable",                              // 8 — 5.0J
+        "Clasificación Correcta de Fallas",               // 9 — 5.1D
+        "Tasa de Conversión",                             // 10 — 5.1E
+        "Cumplimiento del Plan Mensual",                  // 11 — 5.2A
+        "Backlog Pendiente de Planear",                   // 12 — 5.2E
+        "Plan de Mantenimiento Preventivo",               // 13 — 5.2H
+        "Cumplimiento Programación Semanal",              // 14 — 5.3A
     ];
 
     const TAB_SHORT = ["5.0A Utilización","5.0B Costo Mtto","5.0C Servicio","5.0D Atributos","5.0E Costo/Unidad","5.0F Prev/Corr","5.0G Plan Mtto"];
@@ -577,13 +579,14 @@ window.addEventListener('load', () => {
         null, // 4 — 5.0E
         35,   // 5 — 5.0F
         97,   // 6 — 5.0G
-        null, // 7 — 5.0I
-        null, // 8 — 5.1D (pendiente)
-        null, // 9 — 5.1E (pendiente)
-        97,   // 10 — 5.2A (misma meta que 5.0G)
-        null, // 11 — 5.2E (pendiente)
-        97,   // 12 — 5.2H (replica 5.0G)
-        97,   // 13 — 5.3A Cumplimiento Programación Semanal
+        97,   // 7 — 5.0I Asistencia de Programación
+        null, // 8 — 5.0J (tabla)
+        null, // 9 — 5.1D (pendiente)
+        null, // 10 — 5.1E (pendiente)
+        97,   // 11 — 5.2A (misma meta que 5.0G)
+        null, // 12 — 5.2E (pendiente)
+        97,   // 13 — 5.2H (replica 5.0G)
+        97,   // 14 — 5.3A Cumplimiento Programación Semanal
     ];
 
     // ─── Estado ──────────────────────────────────────────────────────────────
@@ -981,10 +984,10 @@ window.addEventListener('load', () => {
         currentIdx = idx;
         DOM.tabBtns.forEach((btn, i) => btn.classList.toggle('active', i === idx));
 
-        const isTabla   = idx === 7;
+        const isTabla   = idx === 8;
         // A tab is "pending" if it's in NEW_TABS OR if it has no data loaded yet
         const hasSheetData = idx < SHEETS.length && SHEETS[idx] && (megaStore[idx] || []).length > 0;
-        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 10 && idx !== 12 && idx !== 13);
+        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 11 && idx !== 13 && idx !== 14);
         const chartArea  = $('chartArea');
         const tablaView  = $('tablaView');
         const chartTitle = $('chartTitle');
@@ -1001,7 +1004,7 @@ window.addEventListener('load', () => {
         else if (!isNewTab) updateCharts();
     };
 
-    // ─── Tabla 5.0I ──────────────────────────────────────────────────────────
+    // ─── Tabla 5.0J ──────────────────────────────────────────────────────────
     function buildTabla() {
         const thead = $('tablaHead');
         const body  = $('tablaBody');
@@ -1122,18 +1125,18 @@ window.addEventListener('load', () => {
     window.updateCharts = function() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            if (currentIdx === 7) buildTabla();
+            if (currentIdx === 8) buildTabla();
             else _doUpdate(); // _doUpdate routes to _doUpdateWeekly for idx 13
         }, 80);
     };
 
     function _doUpdate() {
         // 5.2A (idx 10) y 5.2H (idx 12) replican 5.0G (idx 6)
-        const effectiveIdx = (currentIdx === 10 || currentIdx === 12) ? 6 : currentIdx;
+        const effectiveIdx = (currentIdx === 11 || currentIdx === 13) ? 6 : currentIdx;
         const rawData = megaStore[effectiveIdx] || [];
 
         // 5.3A (idx 13): gráfica semanal — fluye a _doUpdateWeekly
-        if (currentIdx === 13) { _doUpdateWeekly(rawData); return; }
+        if (currentIdx === 14) { _doUpdateWeekly(rawData); return; }
 
         // Resolve active year: first selected, else max year in data
         const allYears = [...new Set(rawData.map(d => parseInt(d.ANIO)).filter(y => y > 1900))].sort((a,b)=>b-a);
