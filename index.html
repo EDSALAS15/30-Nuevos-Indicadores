@@ -1354,8 +1354,9 @@ window.addEventListener('load', () => {
         let datasets = [];
 
         if (currentIdx === 5) {
-            // Use same base key as colKey but for CORR pair
-            const base5f   = colKey.replace('_PREV','');
+            // zona parameter holds the base key (e.g. 'NACIONAL', 'CENTRO', 'A')
+            // append _PREV and _CORR to get the stacked bar data
+            const base5f   = zona; // zona is already the resolved base (displayLabel)
             const prevData = getMonthlyValues(rawData, anio, base5f + '_PREV');
             const corrData = getMonthlyValues(rawData, anio, base5f + '_CORR');
             datasets.push({
