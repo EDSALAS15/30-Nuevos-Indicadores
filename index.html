@@ -549,7 +549,9 @@ window.addEventListener('load', () => {
     // idx 8-13: nuevas pestañas (sin datos aún — pendiente de Excel)
     const NEW_TABS   = [9, 10, 12]; // 11=5.2A, 13=5.2H replican 5.0G; 14=5.3A activa
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-    const PCT_TABS   = new Set([0, 2, 5, 6, 7, 11, 13, 14]); // 7=5.0I Asistencia, 11=5.2A, 13=5.2H, 14=5.3A
+    const PCT_TABS       = new Set([0, 2, 5, 6, 7, 11, 13, 14]); // 7=5.0I Asistencia, 11=5.2A, 13=5.2H, 14=5.3A
+    const AVG_TABS       = new Set([1, 3, 4]);  // 5.0B, 5.0D, 5.0E: KPI1=promedio, KPI2=var promedios
+    const MIN_BETTER_TABS = new Set([1, 3, 4]); // 5.0B, 5.0D, 5.0E: menor valor = mejor (KPI6 muestra mínimo)
 
     const TAB_NAMES = [
         "Maximización de Utilización",                    // 0 — 5.0A
@@ -572,7 +574,7 @@ window.addEventListener('load', () => {
     const TAB_SHORT = ["5.0A Utilización","5.0B Costo Mtto","5.0C Servicio","5.0D Atributos","5.0E Costo/Unidad","5.0F Prev/Corr","5.0G Plan Mtto"];
 
     const TAB_GOALS = [
-        90,   // 0 — 5.0A
+        95,   // 0 — 5.0A
         null, // 1 — 5.0B
         90,   // 2 — 5.0C
         null, // 3 — 5.0D
@@ -735,14 +737,30 @@ window.addEventListener('load', () => {
         const allRows = Object.values(megaStore).flat();
         const selYrs  = activeFilters.ANIO.map(Number).filter(y => !isNaN(y));
         const rows    = selYrs.length > 0 ? allRows.filter(d => selYrs.includes(parseInt(d.ANIO))) : allRows;
-        // Get unique division values that have data
+
+        // Get unique column keys that have actual data
         const activeDivs = new Set();
         rows.forEach(d => {
             Object.keys(d).forEach(k => {
-                if (d[k] && parseFloat(d[k]) > 0) activeDivs.add(k);
+                const v = d[k];
+                if (v !== null && v !== undefined && v !== 0) {
+                    try { if (parseFloat(String(v).replace(/[%,$\s]/g,'')) > 0) activeDivs.add(k); }
+                    catch(e) {}
+                }
             });
         });
-        // Filter FILTER_TREE to only show entries with active data
+
+        // Mutual exclusion rules:
+        // If D and J both exist → hide D/J
+        // If only D/J exists    → hide D and J individually
+        // If JUAREZ A or JUAREZ B exist → hide plain JUAREZ subzona entry
+        // If only JUAREZ exists → hide JUAREZ A and JUAREZ B
+        const hasDJ  = activeDivs.has('D/J');
+        const hasD   = activeDivs.has('D');
+        const hasJ   = activeDivs.has('J');
+        const hasJuarezAB = activeDivs.has('JUAREZ A') || activeDivs.has('JUAREZ B');
+        const hasJuarez   = activeDivs.has('JUAREZ');
+
         const selZonas    = activeFilters.ZONA;
         const selSubzonas = activeFilters.SUBZONA;
         const zonas = selZonas.length === 0 ? ['LOCAL','FORANEA'] : selZonas;
@@ -754,7 +772,7 @@ window.addEventListener('load', () => {
                 .map(r => r.subzona)
         )].sort();
 
-        const availDivs = [...new Set(
+        let availDivs = [...new Set(
             FILTER_TREE
                 .filter(r =>
                     zonas.some(z => z === r.zona || z === 'NACIONAL') &&
@@ -762,9 +780,18 @@ window.addEventListener('load', () => {
                 )
                 .flatMap(r => r.divs)
                 .filter(d => activeDivs.has(d))
-        )].sort();
+        )];
 
-        return { subs: availSubs, divs: availDivs };
+        // Apply mutual exclusion
+        availDivs = availDivs.filter(d => {
+            if (d === 'D/J' && (hasD || hasJ)) return false;  // hide D/J when D or J exist
+            if ((d === 'D' || d === 'J') && hasDJ && !hasD && !hasJ) return false; // hide D,J when only D/J
+            if (d === 'JUAREZ' && hasJuarezAB) return false;  // hide JUAREZ when A/B exist
+            if ((d === 'JUAREZ A' || d === 'JUAREZ B') && hasJuarez && !hasJuarezAB) return false;
+            return true;
+        });
+
+        return { subs: availSubs, divs: availDivs.sort() };
     }
 
     function initFilters(years) {
@@ -1127,6 +1154,8 @@ window.addEventListener('load', () => {
             + yearGroups.map(g =>
                 `<th class="th-anio th-year-start" colspan="${g.span}">${g.yr}</th>`
               ).join('')
+            + '<th class="th-anio" rowspan="2" style="min-width:60px;">META</th>'
+            + '<th class="th-anio" rowspan="2" style="min-width:90px;">TENDENCIA</th>'
             + '</tr>';
 
         const hRow2 = '<tr>'
@@ -1141,13 +1170,40 @@ window.addEventListener('load', () => {
         // ── Render <tbody> ────────────────────────────────────────────────────
         body.innerHTML = rowDefs.map(rd => {
             const labelCell = `<td class="td-label">${rd.label}</td>`;
-            const dataCells = cols.map((c, ci) => {
-                const v        = getVal(rd.sIdx, rd.colKey, c.yr, c.mIdx);
+            const rowVals   = cols.map(c => getVal(rd.sIdx, rd.colKey, c.yr, c.mIdx));
+            const dataCells = rowVals.map((v, ci) => {
                 const startCls = yearStartCols.has(ci) ? ' td-year-start' : '';
                 if (v === 0) return `<td class="td-val td-empty${startCls}">—</td>`;
                 return `<td class="td-val${startCls}">${formatValue(v, rd.tabIdx)}</td>`;
             }).join('');
-            return `<tr class="${rd.rowCls}">${labelCell}${dataCells}</tr>`;
+
+            // META cell
+            const goal = TAB_GOALS[rd.tabIdx];
+            const goalCell = `<td class="td-val" style="font-weight:700;color:#0070C0;border-left:2px solid #c0cad4;">
+                ${goal != null ? formatValue(PCT_TABS.has(rd.tabIdx) ? goal/100 : goal, rd.tabIdx) : '—'}
+            </td>`;
+
+            // SPARKLINE: mini SVG line chart of non-zero values
+            const sparkVals = rowVals.filter(v => v !== 0);
+            let sparkCell = '<td class="td-val">';
+            if (sparkVals.length >= 2) {
+                const W = 80, H = 28, pad = 3;
+                const minV = Math.min(...sparkVals), maxV = Math.max(...sparkVals);
+                const range = maxV - minV || 1;
+                const pts = sparkVals.map((v,i) => {
+                    const x = pad + (i / (sparkVals.length-1)) * (W - pad*2);
+                    const y = H - pad - ((v - minV) / range) * (H - pad*2);
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).join(' ');
+                sparkCell += `<svg width="${W}" height="${H}" style="display:block;margin:auto;">
+                    <polyline points="${pts}" fill="none" stroke="#333F48" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>`;
+            } else {
+                sparkCell += '—';
+            }
+            sparkCell += '</td>';
+
+            return `<tr class="${rd.rowCls}">${labelCell}${dataCells}${goalCell}${sparkCell}</tr>`;
         }).join('');
     }
 
@@ -1259,79 +1315,90 @@ window.addEventListener('load', () => {
     }
 
     // ─── KPIs ─────────────────────────────────────────────────────────────────
-    function makeDelta(pct) {
+    function makeDelta(pct, minBetter) {
         const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '●';
-        const cls   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+        // For min-better tabs: going up is bad (down), going down is good (up)
+        const cls   = pct === 0 ? 'flat' : (minBetter ? (pct > 0 ? 'down' : 'up') : (pct > 0 ? 'up' : 'down'));
         return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
     }
 
-    function updateKPIs(nowData, pastData, anio, mesVal, mesFijo) {
-        const isPct = PCT_TABS.has(currentIdx);
-        const fmt   = v => formatValue(v, currentIdx);
+    function updateKPIs(nowData, pastData, anio, mesVal, mesFijo, periodLabels) {
+        const isPct      = PCT_TABS.has(currentIdx);
+        const isAvg      = AVG_TABS.has(currentIdx);
+        const isMinBetter= MIN_BETTER_TABS.has(currentIdx);
+        const isWeekly   = currentIdx === 14; // 5.3A
+        const fmt        = v => formatValue(v, currentIdx);
 
-        // ── Último mes con dato cargado en el año actual ──────────────────────
-        // Se usa en todas las tarjetas que dicen "mes actual"
+        // Period labels: months or weeks depending on tab
+        const PERIOD_LABELS = periodLabels || MES_LABELS;
+        const N = nowData.length; // 12 for months, up to 52 for weeks
+
+        // ── Last loaded period (month/week) ───────────────────────────────────
         let lastLoadedIdx = -1;
-        for (let i = 11; i >= 0; i--) {
+        for (let i = N - 1; i >= 0; i--) {
             if (nowData[i] !== 0) { lastLoadedIdx = i; break; }
         }
-        // Si hay un mes fijo seleccionado por filtro, ese tiene prioridad
-        const mesIdx = mesFijo !== null ? mesFijo : (lastLoadedIdx >= 0 ? lastLoadedIdx : new Date().getMonth());
-        const mesLbl = MES_LABELS[mesIdx] || '—';
-        const mesNow = nowData[mesIdx] ?? 0;
+        const periodIdx = mesFijo !== null ? mesFijo : (lastLoadedIdx >= 0 ? lastLoadedIdx : 0);
+        const periodLbl = PERIOD_LABELS[periodIdx] || '—';
+        const periodNow = nowData[periodIdx] ?? 0;
 
-        // ── KPI 1: Acumulado año (solo meses con dato) ────────────────────────
-        const acum     = calcAcum(nowData, isPct);
-        DOM.kpiAcum.textContent    = fmt(acum);
-        DOM.kpiAcumSub.textContent = isPct ? 'Promedio anual' : 'Total acumulado';
+        // ── KPI 1: Promedio (AVG tabs) or Acumulado/Promedio anual ───────────
+        const nonZero    = nowData.filter(v => v !== 0);
+        const acumVal    = isAvg || isPct
+            ? (nonZero.length ? nonZero.reduce((a,b)=>a+b,0)/nonZero.length : 0)
+            : nowData.reduce((a,b)=>a+b,0);
+        DOM.kpiAcum.textContent    = fmt(acumVal);
+        DOM.kpiAcumSub.textContent = isAvg ? 'Promedio del año' : isPct ? 'Promedio anual' : 'Total acumulado';
 
-        // ── KPI 2: Variación acumulado vs mismo período año anterior ─────────
-        // Detectar qué meses del año actual tienen dato (el "período disponible")
-        const mesesConDato = nowData.map((v, i) => v !== 0 ? i : -1).filter(i => i >= 0);
-        // Sumar el año anterior SOLO para esos mismos meses
-        const acumPastMismoPeriodo = mesesConDato.reduce((sum, mIdx_) => {
-            return sum + (pastData[mIdx_] ?? 0);
-        }, 0);
-        const acumNowMismoPeriodo = mesesConDato.reduce((sum, mIdx_) => {
-            return sum + (nowData[mIdx_] ?? 0);
-        }, 0);
-        // Para porcentajes usar promedio, para dinero usar suma
-        const acumNowCmp  = isPct
-            ? (mesesConDato.length ? acumNowMismoPeriodo  / mesesConDato.length : 0)
-            : acumNowMismoPeriodo;
-        const acumPastCmp = isPct
-            ? (mesesConDato.length ? acumPastMismoPeriodo / mesesConDato.length : 0)
-            : acumPastMismoPeriodo;
-        const varAcumPct  = acumPastCmp !== 0
-            ? ((acumNowCmp - acumPastCmp) / Math.abs(acumPastCmp)) * 100 : 0;
-        const periodoLbl  = mesesConDato.length > 0
-            ? `${MES_LABELS[mesesConDato[0]]}–${MES_LABELS[mesesConDato[mesesConDato.length-1]]}`
-            : 'Sin datos';
-        DOM.kpiVar.innerHTML      = makeDelta(varAcumPct);
-        DOM.kpiVarSub.textContent = `${periodoLbl} ${anio} vs ${anio-1}`;
+        // ── KPI 2: Variación promedio vs mismo período año anterior ──────────
+        const periodosConDato = nowData.map((v,i) => v !== 0 ? i : -1).filter(i => i >= 0);
+        const nowCmp  = periodosConDato.length
+            ? periodosConDato.reduce((s,i)=>s+(nowData[i]??0),0) / periodosConDato.length : 0;
+        const pastCmp = periodosConDato.length
+            ? periodosConDato.reduce((s,i)=>s+(pastData[i]??0),0) / periodosConDato.length : 0;
+        const varCmpPct = pastCmp !== 0 ? ((nowCmp - pastCmp) / Math.abs(pastCmp)) * 100 : 0;
+        const p0 = PERIOD_LABELS[periodosConDato[0]] || '—';
+        const pN = PERIOD_LABELS[periodosConDato[periodosConDato.length-1]] || '—';
+        const perLbl = periodosConDato.length > 0 ? `${p0}–${pN}` : 'Sin datos';
+        DOM.kpiVar.innerHTML      = makeDelta(varCmpPct, isMinBetter);
+        DOM.kpiVarSub.textContent = `${perLbl} ${anio} vs ${anio-1}`;
 
-        // ── KPI 3: Mes actual (último mes cargado) ────────────────────────────
-        DOM.kpiMes.textContent    = fmt(mesNow);
-        DOM.kpiMesSub.textContent = `${mesLbl} ${anio}`;
+        // ── KPI 3: Período actual ─────────────────────────────────────────────
+        const kpi3Lbl = isWeekly ? 'Semana actual' : 'Mes actual';
+        DOM.kpiMes.textContent    = fmt(periodNow);
+        DOM.kpiMesSub.textContent = `${periodLbl} ${anio}`;
 
-        // ── KPI 4: Var. mes actual vs mismo mes año anterior ─────────────────
-        const mesNowPastYear = pastData[mesIdx] ?? 0;
-        const varMesAnoPct   = mesNowPastYear !== 0
-            ? ((mesNow - mesNowPastYear) / Math.abs(mesNowPastYear)) * 100 : 0;
-        DOM.kpiVarAcum.innerHTML      = makeDelta(varMesAnoPct);
-        DOM.kpiVarAcumSub.textContent = `${mesLbl} ${anio}: ${fmt(mesNow)} vs ${anio-1}: ${fmt(mesNowPastYear)}`;
+        // ── KPI 4: Var. período actual vs mismo período año anterior ──────────
+        const periodPastYear = pastData[periodIdx] ?? 0;
+        const varPeriodAnoPct = periodPastYear !== 0
+            ? ((periodNow - periodPastYear) / Math.abs(periodPastYear)) * 100 : 0;
+        DOM.kpiVarAcum.innerHTML      = makeDelta(varPeriodAnoPct, isMinBetter);
+        DOM.kpiVarAcumSub.textContent = `${periodLbl} ${anio}: ${fmt(periodNow)} vs ${anio-1}: ${fmt(periodPastYear)}`;
 
-        // ── KPI 5: Var. mes actual vs mes anterior ────────────────────────────
-        const mesIdxPrev = mesIdx > 0 ? mesIdx - 1 : 11;
-        const mesPrev    = nowData[mesIdxPrev] ?? 0;
-        const varMesPct  = mesPrev !== 0 ? ((mesNow - mesPrev) / Math.abs(mesPrev)) * 100 : 0;
-        DOM.kpiVarMes.innerHTML      = makeDelta(varMesPct);
-        DOM.kpiVarMesSub.textContent = `${mesLbl} vs ${MES_LABELS[mesIdxPrev]}`;
+        // ── KPI 5: Var. período actual vs período anterior ────────────────────
+        const prevIdx  = periodIdx > 0 ? periodIdx - 1 : 0;
+        const prevVal  = nowData[prevIdx] ?? 0;
+        const varPrevPct = prevVal !== 0 ? ((periodNow - prevVal) / Math.abs(prevVal)) * 100 : 0;
+        DOM.kpiVarMes.innerHTML      = makeDelta(varPrevPct, isMinBetter);
+        DOM.kpiVarMesSub.textContent = `${periodLbl} vs ${PERIOD_LABELS[prevIdx] || '—'}`;
 
-        // ── KPI 6: Mejor mes del año ──────────────────────────────────────────
-        const bestIdx = nowData.indexOf(Math.max(...nowData));
-        DOM.kpiBest.textContent    = fmt(nowData[bestIdx] ?? 0);
-        DOM.kpiBestSub.textContent = MES_LABELS[bestIdx] ?? '—';
+        // ── KPI 6: Mejor período del año (menor si MIN_BETTER) ───────────────
+        const validVals  = nowData.map((v,i)=>({v,i})).filter(x=>x.v!==0);
+        const bestEntry  = validVals.length === 0 ? {v:0,i:0}
+            : isMinBetter
+                ? validVals.reduce((a,b)=>a.v<b.v?a:b)
+                : validVals.reduce((a,b)=>a.v>b.v?a:b);
+        const kpi6Lbl    = isMinBetter ? 'Menor del año' : 'Mejor mes del año';
+        DOM.kpiBest.textContent    = fmt(bestEntry.v);
+        DOM.kpiBestSub.textContent = PERIOD_LABELS[bestEntry.i] ?? '—';
+
+        // Update KPI labels for weekly tabs
+        if (isWeekly) {
+            const k3El = DOM.kpiMes.previousElementSibling;
+            if (k3El) k3El.textContent = 'Semana Actual';
+            const k6El = DOM.kpiBest.previousElementSibling;
+            if (k6El) k6El.textContent = kpi6Lbl;
+        }
     }
 
     function updateChartTitle(zona, anio, mesVal) {
@@ -1478,12 +1545,8 @@ window.addEventListener('load', () => {
         const pastVals   = allSems.map(s => pastMap[s] || 0);
         const fmtFn      = v => formatValue(v, currentIdx);
 
-        // ── KPIs adaptados a semanas ─────────────────────────────────────────
-        // updateKPIs expects month-indexed arrays; we adapt week data to it
-        // by limiting to 12 elements max and using week index as "month"
-        const nowSlice  = nowVals.slice(0, 12).concat(new Array(Math.max(0, 12-nowVals.length)).fill(0));
-        const pastSlice = pastVals.slice(0, 12).concat(new Array(Math.max(0, 12-pastVals.length)).fill(0));
-        updateKPIs(nowSlice, pastSlice, anio, 'TODOS', null);
+        // ── KPIs por semana: pass full week arrays + week labels ──────────────
+        updateKPIs(nowVals, pastVals, anio, 'TODOS', null, weekLabels);
 
         // Chart title
         DOM.ctName.textContent = TAB_NAMES[currentIdx] || '';
