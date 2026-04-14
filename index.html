@@ -610,14 +610,19 @@ window.addEventListener('load', () => {
         return sel[0]; // single selection: LOCAL or FORANEA
     }
 
+
+
     // Estructura jerárquica: ZONA → SUBZONA → DIVISIONES
     // Fuente: Estructura_de_filtros.xlsx
+    // FILTER_TREE: jerarquía ZONA → SUBZONA → DIVISIONES
+    // Nota: 5.0A/B/C/D/E usan 'D/J' combinado; 5.0F/G/I/5.3A usan 'D','F','J' separados
+    // El filtro muestra ambas opciones; el código busca la columna disponible en cada hoja
     const FILTER_TREE = [
         { zona:'LOCAL',   subzona:'CENTRO',          divs:['A','E'] },
-        { zona:'LOCAL',   subzona:'METROS',           divs:['PREMETRO','SENDERO','TRASNMETRO'] },
+        { zona:'LOCAL',   subzona:'METROS',           divs:['PREMETRO','SENDERO'] },
         { zona:'LOCAL',   subzona:'NORTE',            divs:['B','G'] },
         { zona:'LOCAL',   subzona:'ORIENTE',          divs:['F','H'] },
-        { zona:'LOCAL',   subzona:'PONIENTE',         divs:['C','D','J'] },
+        { zona:'LOCAL',   subzona:'PONIENTE',         divs:['C','D','J','D/J'] },
         { zona:'FORANEA', subzona:'JUAREZ',           divs:['JUAREZ','JUAREZ A','JUAREZ B'] },
         { zona:'FORANEA', subzona:'NUEVO LAREDO',     divs:['NUEVO LAREDO'] },
         { zona:'FORANEA', subzona:'REYNOSA',          divs:['REYNOSA'] },
@@ -893,28 +898,67 @@ window.addEventListener('load', () => {
     // Hoja 5.3A: columnas ANIO | SEMANA | NACIONAL | LOCAL | FORANEA
     // SEMANA es un número (1-52). Se parsea igual que MES pero con campo SEMANA.
     function parseSheetGeneric(sheet, years) {
-        return XLSX.utils.sheet_to_json(sheet, { defval: 0 }).map(row => {
+        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: 0 });
+        if (raw.length < 2) return [];
+        const headerRow = raw[0];
+
+        // Build normalized header list, handling duplicate names
+        // For duplicate columns: keep FIRST occurrence (subzona level takes priority over division detail)
+        const headers = [];
+        const seen = {};
+        headerRow.forEach(function(h) {
+            if (h === null || h === undefined || h === '') { headers.push(null); return; }
+            let key = normalizeKey(String(h));
+            if (seen[key]) {
+                // Duplicate: use suffixed key so data is still accessible
+                let n = 2;
+                while (seen[key + '_' + n]) n++;
+                headers.push(key + '_' + n);
+                seen[key + '_' + n] = true;
+            } else {
+                headers.push(key);
+                seen[key] = true;
+            }
+        });
+
+        const result = [];
+        for (let i = 1; i < raw.length; i++) {
+            const r = raw[i];
             const clean = {};
-            for (const k in row) { clean[normalizeKey(k)] = row[k]; }
+            headers.forEach(function(k, ci) {
+                if (k !== null) clean[k] = r[ci] !== undefined ? r[ci] : 0;
+            });
             const a = parseInt(clean.ANIO);
             if (!isNaN(a) && a > 1900 && a < 2200) years.add(a);
-            return clean;
-        });
+            if (a > 1900) result.push(clean);
+        }
+        return result;
     }
 
     function parseSheet5F(sheet, years) {
         const raw  = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: 0 });
+        if (raw.length < 3) return [];
+        const headerRow = raw[0]; // zone/subzona/division names (pairs)
         const data = [];
         for (let i = 2; i < raw.length; i++) {
             const r = raw[i], anio = parseInt(r[0]);
             if (!r[0] || isNaN(anio)) continue;
             years.add(anio);
-            data.push({
-                ANIO: anio, MES: r[1],
-                NACIONAL_PREV: r[2]??0, NACIONAL_CORR: r[3]??0,
-                LOCAL_PREV:    r[4]??0, LOCAL_CORR:    r[5]??0,
-                FORANEA_PREV:  r[6]??0, FORANEA_CORR:  r[7]??0
-            });
+            const obj = { ANIO: anio, MES: r[1] };
+            // Columns come in PREV/CORR pairs starting at col 2
+            const seen = {};
+            for (let c = 2; c + 1 < headerRow.length; c += 2) {
+                if (headerRow[c] === null || headerRow[c] === undefined) continue;
+                let name = String(headerRow[c]).trim().toUpperCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (name === 'FORANEO') name = 'FORANEA';
+                // Handle duplicate column names (e.g. NUEVO LAREDO twice)
+                const baseKey = seen[name] ? name + '_B' : name;
+                seen[name] = true;
+                obj[baseKey + '_PREV'] = r[c]   ?? 0;
+                obj[baseKey + '_CORR'] = r[c+1] ?? 0;
+            }
+            data.push(obj);
         }
         return data;
     }
@@ -938,7 +982,9 @@ window.addEventListener('load', () => {
     function normalizeKey(k) {
         let key = k.toString().trim().toUpperCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return (key.includes("ANO") && key.length > 1) ? "ANIO" : key;
+        if (key.includes("ANO") && key.length > 1) return "ANIO";
+        if (key === "FORANEO") return "FORANEA"; // alias: 5.0B uses FORANEO
+        return key;
     }
 
     function parseMes(val) {
@@ -1024,8 +1070,12 @@ window.addEventListener('load', () => {
             ? activeFilters.MES.map(m => MES_LABELS.indexOf(m)).filter(i => i >= 0)
             : MES_LABELS.map((_, i) => i);
 
-        const zonaP = zona + '_PREV';
-        const zonaC = zona + '_CORR';
+        const base5f = (activeFilters.DIVISION.length > 0
+            ? activeFilters.DIVISION[0] : activeFilters.SUBZONA.length > 0
+            ? activeFilters.SUBZONA[0] : zona).toUpperCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const zonaP = base5f + '_PREV';
+        const zonaC = base5f + '_CORR';
 
         const rowDefs = [
             { label: '5.0A: Maximización Utilización',         sIdx: 0, colKey: zona,  tabIdx: 0, rowCls: '' },
@@ -1163,17 +1213,30 @@ window.addEventListener('load', () => {
         // For 5.0F (idx 5), always use zona_PREV / zona_CORR regardless
         let colKey;
         if (effectiveIdx === 5) {
-            colKey = zona + '_PREV';
+            // For 5.0F, resolution uses _PREV/_CORR pairs
+            // Priority: DIVISION > SUBZONA > ZONA
+            const sel5fDiv = activeFilters.DIVISION;
+            const sel5fSub = activeFilters.SUBZONA;
+            if (sel5fDiv.length > 0) {
+                colKey = sel5fDiv[0].toUpperCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') + '_PREV';
+            } else if (sel5fSub.length > 0) {
+                colKey = sel5fSub[0].toUpperCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') + '_PREV';
+            } else {
+                colKey = zona + '_PREV';
+            }
         } else {
             const selDivs = activeFilters.DIVISION;
             const selSubs = activeFilters.SUBZONA;
             if (selDivs.length > 0) {
-                // Use first selected division — find matching key in data (case-insensitive)
                 const sampleRow = rawData.find(d => parseInt(d.ANIO) === anio) || rawData[0] || {};
-                const divKey = Object.keys(sampleRow).find(k => k.toUpperCase() === selDivs[0].toUpperCase());
+                const target    = selDivs[0].toUpperCase();
+                // Try exact match first, then check D/J alias
+                const divKey = Object.keys(sampleRow).find(k => k.toUpperCase() === target)
+                            || Object.keys(sampleRow).find(k => k.toUpperCase() === 'D/J' && (target === 'D' || target === 'J'));
                 colKey = divKey || zona;
             } else if (selSubs.length > 0) {
-                // Use first selected subzona
                 const sampleRow = rawData.find(d => parseInt(d.ANIO) === anio) || rawData[0] || {};
                 const subKey = Object.keys(sampleRow).find(k => k.toUpperCase() === selSubs[0].toUpperCase());
                 colKey = subKey || zona;
@@ -1291,8 +1354,10 @@ window.addEventListener('load', () => {
         let datasets = [];
 
         if (currentIdx === 5) {
-            const prevData = getMonthlyValues(rawData, anio, `${zona}_PREV`);
-            const corrData = getMonthlyValues(rawData, anio, `${zona}_CORR`);
+            // Use same base key as colKey but for CORR pair
+            const base5f   = colKey.replace('_PREV','');
+            const prevData = getMonthlyValues(rawData, anio, base5f + '_PREV');
+            const corrData = getMonthlyValues(rawData, anio, base5f + '_CORR');
             datasets.push({
                 type: 'bar', label: '% Preventivo', data: prevData, stack: 's0',
                 backgroundColor: prevData.map((_,i) => color('#808080','rgba(128,128,128,0.25)',i)),
@@ -1364,7 +1429,7 @@ window.addEventListener('load', () => {
             k.toUpperCase() === 'SEM' || k.toUpperCase() === 'WEEK'
         ) || 'SEMANA';
 
-        // ── Find ZONA column name ────────────────────────────────────────────
+        // ── Find ZONA column name (handles FORANEO typo) ───────────────────
         const zonaKey = Object.keys(firstRow).find(k => k.toUpperCase() === zona.toUpperCase()) || zona;
 
         // ── SUBZONA / DIVISION column resolution for 5.3A ───────────────────
