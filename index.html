@@ -217,7 +217,7 @@
 window.addEventListener('load', () => {
     Chart.register(ChartDataLabels);
 
-    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G","5.0I","","","","","","","5.3A"];
+    const SHEETS     = ["5.0A","5.0B","5.0C","5.0D","5.0E","5.0F","5.0G","5.0I","5.0J","","","","","","","5.3A"];
     const NEW_TABS   = [10, 11, 13];
     const MES_LABELS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
     const PCT_TABS       = new Set([0, 2, 5, 6, 7, 8, 12, 14, 15]);
@@ -642,7 +642,7 @@ window.addEventListener('load', () => {
 
         const isTabla   = idx === 9;
         const hasSheetData = idx < SHEETS.length && SHEETS[idx] && (megaStore[idx] || []).length > 0;
-        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 12 && idx !== 14 && idx !== 15);
+        const isNewTab  = NEW_TABS.includes(idx) || (!isTabla && !hasSheetData && idx !== 8 && idx !== 12 && idx !== 14 && idx !== 15);
         const chartArea  = $('chartArea');
         const tablaView  = $('tablaView');
         const chartTitle = $('chartTitle');
