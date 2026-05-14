@@ -66,9 +66,9 @@
                 <span class="arrow">&#9654;</span>
             </div>
             <div class="nav-children" id="children-group-5-2">
-                <button class="tab-btn" onclick="changeDash(12)">5.2A: Cumplimiento del Plan Mensual</button>
+                <button class="tab-btn" onclick="changeDash(12)">5.2A: Cumplimiento del Plan Mensual (UNIDADES)</button>
                 <button class="tab-btn" onclick="changeDash(13)">5.2E: Backlog Pendiente de Planear</button>
-                <button class="tab-btn" onclick="changeDash(14)">5.2H: Plan de Mantenimiento Preventivo</button>
+                <button class="tab-btn" onclick="changeDash(14)">5.2H: Plan de Mantenimiento Preventivo (UNIDADES)</button>
             </div>
         </div>
 
@@ -232,7 +232,7 @@ window.addEventListener('load', () => {
         "Cumplimiento Estándares de Servicio",
         "Menor Costo por Atributos",
         "Costo de Mantenimiento por Unidad",
-        "Preventivo vs Correctivo",
+        "Ordenes Preventivas Atendidas vs Ordenes Correctivas Atendidas",
         "Cumplimiento Plan de Mantenimiento (UNIDADES ATENDIDAS / UNIDADES PROGRAMADAS)",
         "Cumplimiento de Asistencia de Programación (UNIDADES ENTREGADAS / UNIDADES PROGRAMADAS)",
         "Cumplimiento Plan Mantenimiento (ORDENES ATENDIDAS / ORDENES PROGRAMADAS)",
@@ -250,21 +250,24 @@ window.addEventListener('load', () => {
     const TAB_SHORT = ["5.0A Utilización","5.0B Costo Mtto","5.0C Servicio","5.0D Atributos","5.0E Costo/Unidad","5.0F Prev/Corr","5.0G Plan Mtto"];
 
     const TAB_GOALS = [
-        95,
-        null,
-        90,
-        null,
-        null,
-        35,
-        97,
-        97,
-        null,
-        null,
-        null,
-        97,
-        null,
-        97,
-        97,
+        95,   // 0 — 5.0A
+        null, // 1 — 5.0B
+        90,   // 2 — 5.0C
+        null, // 3 — 5.0D
+        null, // 4 — 5.0E
+        35,   // 5 — 5.0F
+        97,   // 6 — 5.0G (UNIDADES)
+        97,   // 7 — 5.0I Asistencia Programación (UNIDADES)
+        97,   // 8 — 5.0J (ORDENES)
+        null, // 9 — 5.0K (tabla)
+        null, // 10 — 5.1D (pendiente)
+        null, // 11 — 5.1E (pendiente)
+        97,   // 12 — 5.2A Cumplimiento Plan Mensual (UNIDADES)
+        null, // 13 — 5.2E (pendiente)
+        97,   // 14 — 5.2H Plan Mantenimiento Preventivo (UNIDADES)
+        97,   // 15 — 5.3A Programación Semanal (UNIDADES)
+        97,   // 16 — 5.3G Asistencia Programación Semanal (UNIDADES)
+        97,   // 17 — 5.3H Programación Semanal (ORDENES)
     ];
 
     const megaStore = {};
@@ -1151,7 +1154,7 @@ window.addEventListener('load', () => {
     function buildGoalAnnotation(isPct, yMax) {
         const goal = TAB_GOALS[currentIdx];
         if (goal == null) return {};
-        const goalVal = (isPct && yMax === 1) ? goal / 100 : goal;
+        const goalVal = (isPct && (yMax == null || yMax <= 1.1)) ? goal / 100 : goal;
         return { annotations: { metaLine: {
             type: 'line', yMin: goalVal, yMax: goalVal,
             borderColor: '#0070C0', borderWidth: 2,
