@@ -153,22 +153,22 @@
                         <div class="kpi-sub" id="kpiVarSub"></div>
                     </div>
                     <div class="kpi-card" id="kpi2">
-                        <div class="kpi-label">Mes actual</div>
+                        <div class="kpi-label" id="kpiMesLbl">Mes actual</div>
                         <div class="kpi-value" id="kpiMes">—</div>
                         <div class="kpi-sub" id="kpiMesSub"></div>
                     </div>
                     <div class="kpi-card" id="kpi3">
-                        <div class="kpi-label">Var. mes actual vs año anterior</div>
+                        <div class="kpi-label" id="kpiVarAcumLbl">Var. mes actual vs año anterior</div>
                         <div class="kpi-value" id="kpiVarAcum">—</div>
                         <div class="kpi-sub" id="kpiVarAcumSub"></div>
                     </div>
                     <div class="kpi-card" id="kpi4">
-                        <div class="kpi-label">Var. mes actual vs mes anterior</div>
+                        <div class="kpi-label" id="kpiVarMesLbl">Var. mes actual vs mes anterior</div>
                         <div class="kpi-value" id="kpiVarMes">—</div>
                         <div class="kpi-sub" id="kpiVarMesSub"></div>
                     </div>
                     <div class="kpi-card" id="kpi5">
-                        <div class="kpi-label">Mejor mes del año</div>
+                        <div class="kpi-label" id="kpiBestLbl">Mejor mes del año</div>
                         <div class="kpi-value" id="kpiBest">—</div>
                         <div class="kpi-sub" id="kpiBestSub"></div>
                     </div>
@@ -320,6 +320,8 @@ window.addEventListener('load', () => {
         kpiVarAcum:   $('kpiVarAcum'), kpiVarAcumSub: $('kpiVarAcumSub'),
         kpiVarMes:    $('kpiVarMes'),  kpiVarMesSub:  $('kpiVarMesSub'),
         kpiBest:      $('kpiBest'),    kpiBestSub:  $('kpiBestSub'),
+        kpiMesLbl:    $('kpiMesLbl'),  kpiVarAcumLbl: $('kpiVarAcumLbl'),
+        kpiVarMesLbl: $('kpiVarMesLbl'), kpiBestLbl: $('kpiBestLbl'),
         ctName:       $('ctName'),     ctZone:      $('ctZone'),     ctYear: $('ctYear'),
     };
 
@@ -993,12 +995,10 @@ window.addEventListener('load', () => {
         DOM.kpiBest.textContent    = fmt(bestEntry.v);
         DOM.kpiBestSub.textContent = PERIOD_LABELS[bestEntry.i] ?? '—';
 
-        if (isWeekly) {
-            const k3El = DOM.kpiMes.previousElementSibling;
-            if (k3El) k3El.textContent = 'Semana Actual';
-            const k6El = DOM.kpiBest.previousElementSibling;
-            if (k6El) k6El.textContent = kpi6Lbl;
-        }
+        if (DOM.kpiMesLbl)     DOM.kpiMesLbl.textContent     = isWeekly ? 'Semana actual' : 'Mes actual';
+        if (DOM.kpiVarAcumLbl) DOM.kpiVarAcumLbl.textContent = isWeekly ? 'Var. semana actual vs año anterior' : 'Var. mes actual vs año anterior';
+        if (DOM.kpiVarMesLbl)  DOM.kpiVarMesLbl.textContent  = isWeekly ? 'Var. semana actual vs semana anterior' : 'Var. mes actual vs mes anterior';
+        if (DOM.kpiBestLbl)    DOM.kpiBestLbl.textContent    = isMinBetter ? (isWeekly ? 'Menor semana del año' : 'Menor mes del año') : (isWeekly ? 'Mejor semana del año' : 'Mejor mes del año');
     }
 
     function updateChartTitle(zona, anio, mesVal) {
