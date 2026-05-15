@@ -937,7 +937,7 @@ window.addEventListener('load', () => {
         const isPct      = PCT_TABS.has(currentIdx);
         const isAvg      = AVG_TABS.has(currentIdx);
         const isMinBetter= MIN_BETTER_TABS.has(currentIdx);
-        const isWeekly   = currentIdx === 14;
+        const isWeekly   = currentIdx === 15 || currentIdx === 16 || currentIdx === 17;
         const fmt        = v => formatValue(v, currentIdx);
 
         const PERIOD_LABELS = periodLabels || MES_LABELS;
