@@ -34,7 +34,7 @@
             <div class="nav-children open" id="children-group-5-0">
                 <button class="tab-btn active" onclick="changeDash(0)">5.0A: Maximización de utilización unidades</button>
                 <button class="tab-btn" onclick="changeDash(1)">5.0B: Menor costo mantenimiento</button>
-                <button class="tab-btn" onclick="changeDash(2)">5.0C: Cumplimiento estándares de servicio</button>
+                <button class="tab-btn" onclick="changeDash(2)">5.0C: Cumplimiento estándares de servicio (Atributos)</button>
                 <button class="tab-btn" onclick="changeDash(3)">5.0D: Menor costo por atributos</button>
                 <button class="tab-btn" onclick="changeDash(4)">5.0E: Costo de Mantenimiento por Unidad</button>
                 <button class="tab-btn" onclick="changeDash(5)">5.0F: % Mantenimiento Preventivo vs Correctivo</button>
@@ -230,7 +230,7 @@ window.addEventListener('load', () => {
     const TAB_NAMES = [
         "Maximización de Utilización",
         "Menor Costo Mantenimiento",
-        "Cumplimiento Estándares de Servicio",
+        "Cumplimiento Estándares de Servicio (Atributos)",
         "Menor Costo por Atributos",
         "Costo de Mantenimiento por Unidad",
         "Ordenes Preventivas Atendidas vs Ordenes Correctivas Atendidas",
@@ -699,14 +699,15 @@ window.addEventListener('load', () => {
         const zonaC = base5f + '_CORR';
 
         const rowDefs = [
-            { label: '5.0A: Maximización Utilización',         sIdx: 0, colKey: zona,  tabIdx: 0, rowCls: '' },
-            { label: '5.0B: Menor Costo Mantenimiento',        sIdx: 1, colKey: zona,  tabIdx: 1, rowCls: '' },
-            { label: '5.0C: Cumplimiento Estándares Servicio', sIdx: 2, colKey: zona,  tabIdx: 2, rowCls: '' },
-            { label: '5.0D: Menor Costo por Atributos',        sIdx: 3, colKey: zona,  tabIdx: 3, rowCls: '' },
-            { label: '5.0E: Costo Mantenimiento por Unidad',   sIdx: 4, colKey: zona,  tabIdx: 4, rowCls: '' },
-            { label: '5.0F: % Preventivo',                     sIdx: 5, colKey: zonaP, tabIdx: 5, rowCls: 'row-prev' },
-            { label: '5.0F: % Correctivo',                     sIdx: 5, colKey: zonaC, tabIdx: 5, rowCls: 'row-corr' },
-            { label: '5.0G: Cumplimiento Plan Mantenimiento',  sIdx: 6, colKey: zona,  tabIdx: 6, rowCls: '' },
+            { label: '5.0A: Maximización Utilización',                    sIdx: 0, colKey: zona,  tabIdx: 0,  rowCls: '' },
+            { label: '5.0B: Menor Costo Mantenimiento',                   sIdx: 1, colKey: zona,  tabIdx: 1,  rowCls: '' },
+            { label: '5.0C: Cumplimiento Estándares Servicio (Atributos)',sIdx: 2, colKey: zona,  tabIdx: 2,  rowCls: '' },
+            { label: '5.0D: Menor Costo por Atributos',                   sIdx: 3, colKey: zona,  tabIdx: 3,  rowCls: '' },
+            { label: '5.0E: Costo Mantenimiento por Unidad',              sIdx: 4, colKey: zona,  tabIdx: 4,  rowCls: '' },
+            { label: '5.0F: % Preventivo',                                sIdx: 5, colKey: zonaP, tabIdx: 5,  rowCls: 'row-prev' },
+            { label: '5.0F: % Correctivo',                                sIdx: 5, colKey: zonaC, tabIdx: 5,  rowCls: 'row-corr' },
+            { label: '5.0G: Cumplimiento Plan Mantenimiento (UNIDADES)',  sIdx: 6, colKey: zona,  tabIdx: 6,  rowCls: '' },
+            { label: '5.0J: Cumplimiento Plan Mantenimiento (ORDENES)',   sIdx: 8, colKey: zona,  tabIdx: 8,  rowCls: '' },
         ];
 
         const getVal = (sIdx, colKey, yr, mIdx) => {
