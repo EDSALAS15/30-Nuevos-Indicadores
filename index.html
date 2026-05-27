@@ -840,20 +840,12 @@ window.addEventListener('load', () => {
     window.downloadExcel = function() {
         const table = $('tablaData');
         if (!table) return;
-        const rows = [...table.querySelectorAll('tr')];
-        const csv  = rows.map(r =>
-            [...r.querySelectorAll('th,td')].map(c => '"' + c.textContent.trim().replace(/"/g, '""') + '"').join(',')
-        ).join('\n');
-        const bom  = '\uFEFF';
-        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = 'Indicadores_Mantenimiento.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (typeof XLSX === 'undefined') { alert('SheetJS no disponible'); return; }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.table_to_sheet(table, { raw: false });
+        ws['!cols'] = [{ wch: 45 }].concat(Array(60).fill({ wch: 12 }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Indicadores');
+        XLSX.writeFile(wb, 'Indicadores_Mantenimiento.xlsx');
     };
 
     window.updateCharts = function() {
